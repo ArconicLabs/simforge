@@ -85,12 +85,27 @@ void Pipeline::build() {
 
         auto stage = registry.create(stage_name);
 
-        // Pass stage-specific config if present
+        // Build effective config: start from YAML, inject pipeline-level
+        // settings where the stage config doesn't override them
+        YAML::Node stage_config;
         if (auto stages_node = config_.raw["stages"]) {
-            if (auto stage_config = stages_node[stage_name]) {
-                stage->configure(stage_config);
+            if (stages_node[stage_name]) {
+                stage_config = YAML::Clone(stages_node[stage_name]);
             }
         }
+
+        // Inject pipeline-level target_formats into export stage when
+        // it doesn't specify its own formats
+        if (stage_name == "export" &&
+            !stage_config["formats"] && !stage_config["format"]) {
+            for (const auto& f : config_.target_formats) {
+                auto s = format_to_string(f);
+                std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+                stage_config["formats"].push_back(s);
+            }
+        }
+
+        stage->configure(stage_config);
 
         spdlog::info("Loaded stage: {}", stage->name());
         stages_.push_back(std::move(stage));
