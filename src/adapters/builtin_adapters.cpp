@@ -252,7 +252,12 @@ std::vector<Mesh> OBJImporter::import(const fs::path& path) {
 // ─── Adapter Registration ──────────────────────────────────────────
 
 /// Called once at startup to register all built-in adapters.
+/// Safe to call multiple times — subsequent calls are no-ops.
 void register_builtin_adapters() {
+    static bool registered = false;
+    if (registered) return;
+    registered = true;
+
     auto& mgr = AdapterManager::instance();
 
     // Always register zero-dependency importers
