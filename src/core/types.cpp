@@ -132,7 +132,7 @@ nlohmann::json Asset::to_catalog_entry() const {
 
     if (collision) {
         entry["collision"]["type"]       = static_cast<int>(collision->type);
-        entry["collision"]["hull_count"] = collision->hull_count;
+        entry["collision"]["hull_count"] = collision->hull_count();
         entry["collision"]["volume"]     = collision->total_volume;
     }
 

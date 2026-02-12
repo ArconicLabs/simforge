@@ -75,7 +75,10 @@ struct CollisionMesh {
     CollisionType           type{CollisionType::ConvexDecomposition};
     std::vector<Mesh>       hulls;
     float                   total_volume{0.0f};
-    uint32_t                hull_count{0};
+
+    [[nodiscard]] uint32_t hull_count() const {
+        return static_cast<uint32_t>(hulls.size());
+    }
 };
 
 // ─── Physics ───────────────────────────────────────────────────────

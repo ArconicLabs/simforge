@@ -146,13 +146,12 @@ Result<Asset> CollisionStage::process(Asset asset) {
         CollisionMesh coll;
         coll.type = CollisionType::ConvexHull;
         coll.hulls.push_back(combined);
-        coll.hull_count = 1;
         coll.total_volume = combined.compute_volume();
         asset.collision = coll;
     }
 
     spdlog::info("  Generated {} collision hull(s)",
-                 asset.collision->hull_count);
+                 asset.collision->hull_count());
 
     asset.status = AssetStatus::CollisionGenerated;
     return Result<Asset>::ok(std::move(asset));
