@@ -283,17 +283,18 @@ void ValidateStage::configure(const YAML::Node& config) {
             continue;
         }
 
-        bool enabled = it->second.as<bool>(true);
-        if (enabled && registry.available().size() > 0) {
-            try {
-                auto validator = registry.create(key);
-                if (auto cfg = config[key]) {
-                    if (cfg.IsMap()) validator->configure(cfg);
-                }
-                validators_.push_back(std::move(validator));
-            } catch (...) {
-                spdlog::warn("Validator '{}' not found, skipping", key);
+        // A map value means enabled with sub-config; a scalar is a bool toggle
+        bool enabled = it->second.IsMap() || it->second.as<bool>(true);
+        if (!enabled) continue;
+
+        try {
+            auto validator = registry.create(key);
+            if (it->second.IsMap()) {
+                validator->configure(it->second);
             }
+            validators_.push_back(std::move(validator));
+        } catch (...) {
+            spdlog::warn("Validator '{}' not found, skipping", key);
         }
     }
 
