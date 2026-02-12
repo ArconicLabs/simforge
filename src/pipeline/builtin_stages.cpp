@@ -493,6 +493,7 @@ Result<Asset> ExportStage::process(Asset asset) {
         }, std::move(asset));
     }
 
+    asset.status = AssetStatus::Ready;
     return Result<Asset>::ok(std::move(asset));
 }
 

@@ -138,10 +138,10 @@ PipelineReport Pipeline::run() {
 
     for (auto& asset : assets) {
         auto asset_report = run_single(std::move(asset));
-        if (asset_report.final_status == AssetStatus::Ready) {
-            report.passed++;
-        } else {
+        if (asset_report.final_status == AssetStatus::Failed) {
             report.failed++;
+        } else {
+            report.passed++;
         }
         report.asset_reports.push_back(std::move(asset_report));
     }
@@ -199,11 +199,6 @@ Asset Pipeline::run_stages(Asset asset, AssetReport& report) {
         report.stages_completed.push_back(stage->name());
     }
 
-    // If we made it through all stages, mark as ready
-    if (asset.status != AssetStatus::Failed) {
-        asset.status = AssetStatus::Ready;
-    }
-
     return asset;
 }
 
@@ -250,7 +245,7 @@ void PipelineReport::print_summary() const {
     spdlog::info("════════════════════════════════════════");
 
     for (const auto& ar : asset_reports) {
-        auto status = (ar.final_status == AssetStatus::Ready) ? "PASS" : "FAIL";
+        auto status = (ar.final_status == AssetStatus::Failed) ? "FAIL" : "PASS";
         spdlog::info("  [{}] {} ({:.0f} ms)", status, ar.asset_name,
                      ar.processing_time_ms);
         for (const auto& err : ar.errors) {
