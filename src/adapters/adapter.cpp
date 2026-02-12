@@ -39,17 +39,19 @@ void AdapterManager::register_lod_generator(LODGeneratorPtr gen) {
 }
 
 MeshImporter* AdapterManager::find_importer(SourceFormat fmt) const {
-    for (const auto& imp : importers_) {
-        if (imp->can_import(fmt)) return imp.get();
+    // Iterate in reverse so last-registered adapters take priority
+    for (auto it = importers_.rbegin(); it != importers_.rend(); ++it) {
+        if ((*it)->can_import(fmt)) return it->get();
     }
     return nullptr;
 }
 
 MeshExporter* AdapterManager::find_exporter(SourceFormat fmt) const {
-    for (const auto& exp : exporters_) {
-        auto fmts = exp->supported_formats();
+    // Iterate in reverse so last-registered adapters take priority
+    for (auto it = exporters_.rbegin(); it != exporters_.rend(); ++it) {
+        auto fmts = (*it)->supported_formats();
         if (std::find(fmts.begin(), fmts.end(), fmt) != fmts.end())
-            return exp.get();
+            return it->get();
     }
     return nullptr;
 }
