@@ -38,7 +38,7 @@ Result<Asset> IngestStage::process(Asset asset) {
             return Result<Asset>::err({
                 name(), asset.id,
                 "Format " + format_to_string(asset.source_format) + " not in accepted list"
-            });
+            }, std::move(asset));
         }
     }
 
@@ -49,7 +49,7 @@ Result<Asset> IngestStage::process(Asset asset) {
         return Result<Asset>::err({
             name(), asset.id,
             "No importer available for " + format_to_string(asset.source_format)
-        });
+        }, std::move(asset));
     }
 
     spdlog::info("  Using importer: {}", importer->name());
@@ -57,13 +57,13 @@ Result<Asset> IngestStage::process(Asset asset) {
     try {
         asset.meshes = importer->import(asset.source_path);
     } catch (const std::exception& e) {
-        return Result<Asset>::err({name(), asset.id, e.what()});
+        return Result<Asset>::err({name(), asset.id, e.what()}, std::move(asset));
     }
 
     if (asset.meshes.empty()) {
         return Result<Asset>::err({
             name(), asset.id, "Importer returned no meshes"
-        });
+        }, std::move(asset));
     }
 
     // Recompute bounds
@@ -137,7 +137,7 @@ Result<Asset> CollisionStage::process(Asset asset) {
         try {
             asset.collision = gen->generate(combined, params_);
         } catch (const std::exception& e) {
-            return Result<Asset>::err({name(), asset.id, e.what()});
+            return Result<Asset>::err({name(), asset.id, e.what()}, std::move(asset));
         }
     } else {
         // Fallback: use the visual mesh as a convex hull (naive but functional)
@@ -179,7 +179,7 @@ void PhysicsStage::configure(const YAML::Node& config) {
 
 Result<Asset> PhysicsStage::process(Asset asset) {
     if (asset.meshes.empty()) {
-        return Result<Asset>::err({name(), asset.id, "No meshes to annotate"});
+        return Result<Asset>::err({name(), asset.id, "No meshes to annotate"}, std::move(asset));
     }
 
     if (mass_mode_ == "geometry") {
@@ -323,7 +323,7 @@ Result<Asset> ValidateStage::process(Asset asset) {
     if (any_failed && fail_on_warning_) {
         return Result<Asset>::err({
             name(), asset.id, "One or more validations failed"
-        });
+        }, std::move(asset));
     }
 
     asset.status = AssetStatus::Validated;
@@ -432,7 +432,7 @@ Result<Asset> ExportStage::export_single(const Asset& asset, const ExportTarget&
         return Result<Asset>::err({
             name(), asset.id,
             "Export to " + format_to_string(target.format) + " failed for " + asset.name
-        });
+        }, asset);
     }
 }
 
@@ -489,7 +489,7 @@ Result<Asset> ExportStage::process(Asset asset) {
     if (!any_succeeded) {
         return Result<Asset>::err({
             name(), asset.id, "All export formats failed for " + asset.name
-        });
+        }, std::move(asset));
     }
 
     return Result<Asset>::ok(std::move(asset));
