@@ -96,7 +96,7 @@ struct PhysicsProperties {
     bool                        is_static{false};
     bool                        mass_estimated{false}; // true if inferred from geometry
 
-    static PhysicsProperties estimate_from_mesh(const Mesh& mesh, const PhysicsMaterial& mat);
+    static PhysicsProperties estimate_from_mesh(Mesh& mesh, const PhysicsMaterial& mat);
 };
 
 // ─── Material / Appearance ─────────────────────────────────────────

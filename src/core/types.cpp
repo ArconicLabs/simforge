@@ -70,11 +70,14 @@ bool Mesh::is_watertight() const {
 // ─── PhysicsProperties ─────────────────────────────────────────────
 
 PhysicsProperties PhysicsProperties::estimate_from_mesh(
-    const Mesh& mesh, const PhysicsMaterial& mat) {
+    Mesh& mesh, const PhysicsMaterial& mat) {
 
     PhysicsProperties props;
     props.material = mat;
     props.mass_estimated = true;
+
+    // Ensure bounds are up-to-date before using them for inertia
+    mesh.recompute_bounds();
 
     float volume = mesh.compute_volume();
     props.mass = volume * mat.density;
