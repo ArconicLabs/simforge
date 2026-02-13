@@ -6,7 +6,7 @@ SimForge is an open-source pipeline harness that takes raw 3D assets and produce
 
 ## Current Status
 
-**Phase 1 (Core Pipeline + Builtins) is complete.** SimForge can ingest OBJ/STL/FBX/GLTF assets, run them through collision, physics, optimization, and validation stages, and produce a structured JSON catalog. Export adapters for simulation-ready formats are the next priority.
+**Phase 2 (Export Adapters) is complete.** SimForge can ingest raw 3D assets, process them through the full pipeline, and export to USDA, URDF, MJCF, and GLTF formats. Collision and LOD adapter improvements are the next priority.
 
 ---
 
@@ -16,11 +16,11 @@ The highest-leverage work. Without exporters, SimForge is an analysis tool. With
 
 | Task | Description | Status |
 |------|-------------|--------|
-| USDA text exporter | Write ASCII USD without the OpenUSD SDK. Emit visual mesh, collision mesh, and physics properties using UsdGeom + UsdPhysics schemas. | Planned |
-| URDF exporter | Emit `<robot>` XML with visual/collision meshes as external OBJ/STL files and `<inertial>` blocks. | Planned |
-| MJCF exporter | Emit `<mujoco>` XML with mesh references and physics material defaults. | Planned |
-| GLTF exporter | Binary GLTF via tinygltf with PBR materials. No physics data (warn on drop). | Planned |
-| Regression tests | Golden-file comparisons for each exporter against reference assets. | Planned |
+| USDA text exporter | Write ASCII USD without the OpenUSD SDK. Emit visual mesh, collision mesh, and physics properties using UsdGeom + UsdPhysics schemas. | Done |
+| URDF exporter | Emit `<robot>` XML with visual/collision meshes as external OBJ files and `<inertial>` blocks. | Done |
+| MJCF exporter | Emit `<mujoco>` XML with mesh references, STL assets, and physics material defaults. | Done |
+| GLTF exporter | Binary GLTF via tinygltf with PBR materials. No physics data (warn on drop). | Done |
+| Regression tests | Per-exporter unit tests and multi-format integration tests. | Done |
 
 ## Phase 3 — Collision + LOD Adapters
 
