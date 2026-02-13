@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        build_type: [Release, Debug]
+        config:
+          - name: Minimal
+            assimp: OFF
+          - name: Standard
+            assimp: ON
+
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.config.name }} / ${{ matrix.build_type }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build
+
+      - name: Configure
+        run: >
+          cmake -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DSIMFORGE_USE_ASSIMP=${{ matrix.config.assimp }}
+          -DSIMFORGE_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: Test
+        run: cd build && ctest --output-on-failure
+
+  gate:
+    name: Gate
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check matrix results
+        run: |
+          if [ "${{ needs.build-and-test.result }}" != "success" ]; then
+            echo "build-and-test failed or was cancelled"
+            exit 1
+          fi
+          echo "All matrix builds passed"
