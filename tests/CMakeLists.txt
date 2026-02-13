@@ -9,6 +9,7 @@ add_executable(simforge_tests
     test_types.cpp
     test_pipeline.cpp
     test_validators.cpp
+    test_adapters.cpp
 )
 
 target_link_libraries(simforge_tests PRIVATE
