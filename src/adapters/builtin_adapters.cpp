@@ -1,4 +1,5 @@
 #include "simforge/adapters/adapter.h"
+#include "simforge/adapters/exporters.h"
 
 #include <fstream>
 
@@ -272,6 +273,14 @@ void register_builtin_adapters() {
 #endif
 
     spdlog::info("Registered {} importer(s)", mgr.list_importers().size());
+
+    // Export adapters
+    mgr.register_exporter(make_usda_exporter());
+    mgr.register_exporter(make_urdf_exporter());
+    mgr.register_exporter(make_mjcf_exporter());
+    mgr.register_exporter(make_gltf_exporter());
+
+    spdlog::info("Registered {} exporter(s)", mgr.list_exporters().size());
 }
 
 }  // namespace simforge::adapters
