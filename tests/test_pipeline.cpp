@@ -1,7 +1,10 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include <spdlog/spdlog.h>
+
 #include "simforge/pipeline/pipeline.h"
 #include "simforge/pipeline/stage.h"
+#include "simforge/pipeline/builtin_stages.h"
 
 namespace simforge::adapters {
     void register_builtin_adapters();
@@ -9,9 +12,11 @@ namespace simforge::adapters {
 
 using namespace simforge;
 
-// Ensure adapters are available for integration-level tests
+// Ensure adapters and stages are available for tests
 static const bool _init = [] {
+    spdlog::set_level(spdlog::level::warn);
     simforge::adapters::register_builtin_adapters();
+    simforge::stages::register_builtin_stages();
     return true;
 }();
 
@@ -111,4 +116,48 @@ stages:
     REQUIRE(names.size() == 2);
     REQUIRE(names[0] == "ingest");
     REQUIRE(names[1] == "validate");
+}
+
+TEST_CASE("parse_format case-insensitive", "[pipeline]") {
+    REQUIRE(parse_format("obj") == SourceFormat::OBJ);
+    REQUIRE(parse_format("OBJ") == SourceFormat::OBJ);
+    REQUIRE(parse_format("Obj") == SourceFormat::OBJ);
+    REQUIRE(parse_format("stl") == SourceFormat::STL);
+    REQUIRE(parse_format("GLTF") == SourceFormat::GLTF);
+    REQUIRE(parse_format("nonsense") == SourceFormat::Unknown);
+}
+
+TEST_CASE("PipelineConfig with explicit stage_order", "[pipeline]") {
+    auto config = PipelineConfig::from_string(R"(
+pipeline:
+  source: ./assets/
+  output: ./out/
+  stage_order: [ingest, validate, export]
+
+stages:
+  ingest:
+    formats: [obj]
+  validate:
+    mesh_integrity: true
+  export:
+    catalog: true
+)");
+
+    REQUIRE(config.stage_order.size() == 3);
+    REQUIRE(config.stage_order[0] == "ingest");
+    REQUIRE(config.stage_order[1] == "validate");
+    REQUIRE(config.stage_order[2] == "export");
+}
+
+TEST_CASE("PipelineConfig default stage order", "[pipeline]") {
+    auto config = PipelineConfig::from_string(R"(
+pipeline:
+  source: ./assets/
+  output: ./out/
+)");
+
+    // When no stages specified, should get the full default order
+    REQUIRE(config.stage_order.size() == 6);
+    REQUIRE(config.stage_order[0] == "ingest");
+    REQUIRE(config.stage_order[5] == "export");
 }
