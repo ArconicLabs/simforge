@@ -2,6 +2,7 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 #include "simforge/core/types.h"
+#include "test_helpers.h"
 
 using namespace simforge;
 
@@ -113,6 +114,41 @@ TEST_CASE("PhysicsProperties estimation", "[types]") {
     REQUIRE(props.mass_estimated);
     // Volume should be ~1.0, mass ~1000
     REQUIRE(props.mass > 500.0f);  // approximate due to signed volume method
+}
+
+TEST_CASE("parse_format round-trip with format_to_string", "[types]") {
+    // Every known format should round-trip through parse → to_string → parse
+    std::vector<std::string> formats = {
+        "OBJ", "FBX", "GLTF", "GLB", "STL", "STEP",
+        "IGES", "URDF", "MJCF", "USD", "USDA", "USDC", "DAE"
+    };
+
+    for (const auto& name : formats) {
+        auto fmt = parse_format(name);
+        REQUIRE(fmt != SourceFormat::Unknown);
+        auto str = format_to_string(fmt);
+        REQUIRE(parse_format(str) == fmt);
+    }
+
+    // Unknown format
+    REQUIRE(parse_format("xyz") == SourceFormat::Unknown);
+}
+
+TEST_CASE("Mesh compute_volume — unit cube", "[types]") {
+    auto cube = test::make_cube();
+    float vol = cube.compute_volume();
+    REQUIRE_THAT(vol, Catch::Matchers::WithinAbs(1.0, 0.01));
+}
+
+TEST_CASE("CollisionMesh hull_count", "[types]") {
+    CollisionMesh coll;
+    REQUIRE(coll.hull_count() == 0);
+
+    coll.hulls.push_back(test::make_cube());
+    REQUIRE(coll.hull_count() == 1);
+
+    coll.hulls.push_back(test::make_tetrahedron());
+    REQUIRE(coll.hull_count() == 2);
 }
 
 TEST_CASE("Asset catalog entry", "[types]") {
