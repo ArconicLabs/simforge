@@ -33,7 +33,7 @@ SimForge has four layers, each with a single responsibility:
 3. **Stages** — Self-contained processing steps. Each stage implements `Stage::process(Asset) → Result<Asset>`. Stages are stateless between assets and configured once from YAML.
 4. **Adapters** — Thin wrappers around external libraries (Assimp, CoACD, etc.). The `AdapterManager` singleton routes requests to the best available adapter.
 
-See [DESIGN.md](DESIGN.md) for the full design document.
+See [DESIGN.md](DESIGN.md) for the full design document, [ROADMAP.md](ROADMAP.md) for planned work, and [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ```
 ┌──────────┐   ┌────────────┐   ┌─────────┐   ┌──────────┐   ┌───────────┐   ┌────────┐
@@ -99,8 +99,10 @@ simforge/
 │   └── test_integration.cpp   #   End-to-end pipeline tests
 ├── samples/                   # Sample assets (OBJ, STL, GLTF, URDF, MJCF)
 ├── CMakeLists.txt             # Build configuration
+├── CHANGELOG.md               # Release history
 ├── DESIGN.md                  # Full design document
 ├── QUICKSTART.md              # End-to-end walkthrough
+├── ROADMAP.md                 # Planned features and phases
 └── simforge.yaml.example      # Example pipeline config
 ```
 
