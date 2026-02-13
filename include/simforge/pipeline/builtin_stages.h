@@ -124,4 +124,9 @@ private:
     Result<Asset> export_single(const Asset& asset, const ExportTarget& target);
 };
 
+/// Explicitly register all built-in stages. Safe to call multiple times.
+/// Needed when linking simforge_core as a static library since the
+/// SIMFORGE_REGISTER_STAGE auto-registration may be stripped by the linker.
+void register_builtin_stages();
+
 }  // namespace simforge::stages

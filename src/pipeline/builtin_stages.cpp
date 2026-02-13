@@ -509,3 +509,27 @@ SIMFORGE_REGISTER_STAGE(ValidateStage,  "validate")
 SIMFORGE_REGISTER_STAGE(ExportStage,    "export")
 
 }  // namespace simforge::stages
+
+namespace simforge::stages {
+
+void register_builtin_stages() {
+    static bool registered = false;
+    if (registered) return;
+    registered = true;
+
+    auto& reg = StageRegistry::instance();
+    if (!reg.has("ingest"))
+        reg.register_stage("ingest", [] { return std::make_unique<IngestStage>(); });
+    if (!reg.has("collision"))
+        reg.register_stage("collision", [] { return std::make_unique<CollisionStage>(); });
+    if (!reg.has("physics"))
+        reg.register_stage("physics", [] { return std::make_unique<PhysicsStage>(); });
+    if (!reg.has("optimize"))
+        reg.register_stage("optimize", [] { return std::make_unique<OptimizeStage>(); });
+    if (!reg.has("validate"))
+        reg.register_stage("validate", [] { return std::make_unique<ValidateStage>(); });
+    if (!reg.has("export"))
+        reg.register_stage("export", [] { return std::make_unique<ExportStage>(); });
+}
+
+}  // namespace simforge::stages
