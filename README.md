@@ -98,6 +98,8 @@ A config file has two top-level keys:
 
 ```
 simforge/
+├── .github/workflows/         # CI/CD
+│   └── ci.yml                 #   Build matrix + gate job
 ├── include/simforge/          # Public headers
 │   ├── adapters/              #   Adapter interface (MeshImporter/MeshExporter)
 │   ├── core/                  #   Core types (Asset, Mesh, Vec3, Physics)
@@ -109,12 +111,32 @@ simforge/
 │   ├── core/                  #   Core type implementations
 │   ├── pipeline/              #   Pipeline and stage implementations
 │   └── validators/            #   Validator implementations
-├── tests/                     # Unit, integration, and end-to-end tests
+├── tests/                     # Test suite
+│   ├── test_helpers.h         #   Programmatic mesh builders + file writers
+│   ├── test_types.cpp         #   Core type tests
+│   ├── test_validators.cpp    #   Validator tests
+│   ├── test_pipeline.cpp      #   Pipeline config + stage registry tests
+│   ├── test_adapters.cpp      #   OBJ/STL importer round-trip tests
+│   └── test_integration.cpp   #   End-to-end pipeline tests
 ├── samples/                   # Sample assets (OBJ, STL, GLTF, URDF, MJCF)
 ├── CMakeLists.txt             # Build configuration
 ├── DESIGN.md                  # Full design document
 └── simforge.yaml.example      # Example pipeline config
 ```
+
+## CI/CD
+
+GitHub Actions runs on every push to `develop` and on PRs to `main`.
+
+| Job | Description |
+|-----|-------------|
+| `Minimal / Release` | Build without Assimp, Release mode |
+| `Minimal / Debug` | Build without Assimp, Debug mode |
+| `Standard / Release` | Build with Assimp, Release mode |
+| `Standard / Debug` | Build with Assimp, Debug mode |
+| `Gate` | Required status check — passes only when all matrix builds pass |
+
+**Branching workflow:** develop locally on `develop` → push → CI runs → open PR to `main` → Gate must pass to merge.
 
 ## Development
 
