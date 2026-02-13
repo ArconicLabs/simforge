@@ -6,6 +6,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This pr
 
 ## [Unreleased]
 
+### Added
+
+- **USDA exporter**: ASCII USD output with visual meshes, collision scope, and UsdPhysics schema attributes — no OpenUSD SDK required
+- **URDF exporter**: Single-link `<robot>` XML with external OBJ meshes in `meshes/` and `<inertial>` blocks via tinyxml2
+- **MJCF exporter**: MuJoCo `<mujoco>` XML with STL mesh assets in `assets/`, physics material defaults, and inertial properties via tinyxml2
+- **GLTF exporter**: Binary GLB (or text GLTF) output via tinygltf with PBR metallic-roughness materials, buffer packing, and scene graph
+- **Shared mesh writers**: `write_obj`, `write_obj_multi`, `write_binary_stl` utilities in `simforge/adapters/mesh_writer.h` for exporter use
+- **Exporter factory functions**: `make_usda_exporter()`, `make_urdf_exporter()`, `make_mjcf_exporter()`, `make_gltf_exporter()` in `simforge/adapters/exporters.h`
+- **Dependencies**: tinyxml2 (URDF/MJCF XML generation) and tinygltf (GLTF binary export) via FetchContent
+- **Exporter tests**: 15 unit tests covering output structure, external mesh files, physics attributes, and round-trip parsing for all 4 formats
+- **Integration test**: Full pipeline test exporting to all 4 formats simultaneously with catalog verification
+
 ## [0.1.0] — 2026-02-13
 
 Initial public release. Phase 1 (Core Pipeline + Builtins) is complete.
