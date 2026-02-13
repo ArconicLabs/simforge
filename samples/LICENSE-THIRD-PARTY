@@ -1,0 +1,41 @@
+Third-Party Asset Attribution
+=============================
+
+This directory contains sample assets from multiple sources.
+Each asset's provenance and license is documented below.
+
+
+primitives/
+-----------
+  cube.obj, cube.stl
+  Created for the simforge project.
+  Licensed under Apache License 2.0 (same as the project).
+
+
+gltf/
+-----
+  Box.glb, Duck.glb
+  Source: Khronos Group glTF Sample Assets
+          https://github.com/KhronosGroup/glTF-Sample-Assets
+  License: Apache License 2.0
+           https://www.apache.org/licenses/LICENSE-2.0
+
+
+nasa/
+-----
+  voyager.glb        — Voyager Probe (A)
+  apollo-lunar-module.glb — Apollo Lunar Module
+  hubble.glb         — Hubble Space Telescope (A)
+
+  Source: NASA 3D Resources
+          https://github.com/nasa/NASA-3D-Resources
+  License: Public Domain (U.S. Government Work)
+           NASA media usage guidelines:
+           https://www.nasa.gov/nasa-brand-center/images-and-media/
+
+
+robot/
+------
+  cart_pole.urdf, cart_pole.mjcf
+  Created for the simforge project.
+  Licensed under Apache License 2.0 (same as the project).
