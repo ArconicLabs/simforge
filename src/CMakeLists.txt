@@ -7,6 +7,11 @@ add_library(simforge_core STATIC
     pipeline/builtin_stages.cpp
     adapters/adapter.cpp
     adapters/builtin_adapters.cpp
+    adapters/mesh_writer.cpp
+    adapters/usda_exporter.cpp
+    adapters/urdf_exporter.cpp
+    adapters/mjcf_exporter.cpp
+    adapters/gltf_exporter.cpp
     validators/validator.cpp
 )
 
@@ -18,6 +23,11 @@ target_link_libraries(simforge_core PUBLIC
     yaml-cpp::yaml-cpp
     spdlog::spdlog
     nlohmann_json::nlohmann_json
+    tinyxml2::tinyxml2
+)
+
+target_include_directories(simforge_core PRIVATE
+    ${tinygltf_SOURCE_DIR}
 )
 
 if(SIMFORGE_USE_ASSIMP)
