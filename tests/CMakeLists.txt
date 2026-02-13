@@ -10,12 +10,18 @@ add_executable(simforge_tests
     test_pipeline.cpp
     test_validators.cpp
     test_adapters.cpp
+    test_exporters.cpp
     test_integration.cpp
 )
 
 target_link_libraries(simforge_tests PRIVATE
     simforge_core
     Catch2::Catch2WithMain
+    tinyxml2::tinyxml2
+)
+
+target_include_directories(simforge_tests PRIVATE
+    ${tinygltf_SOURCE_DIR}
 )
 
 include(CTest)
