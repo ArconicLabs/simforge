@@ -1,5 +1,7 @@
 #include "simforge/adapters/adapter.h"
 
+#include <fstream>
+
 #include <spdlog/spdlog.h>
 
 #ifdef SIMFORGE_HAS_ASSIMP
