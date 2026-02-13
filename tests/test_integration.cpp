@@ -233,6 +233,72 @@ TEST_CASE("Pipeline — unrecognized file format", "[integration]") {
 
 // ─── Single Asset Pipeline ───────────────────────────────────────
 
+TEST_CASE("Export stage — all four export formats", "[integration][exporters]") {
+    TempDir src_dir;
+    TempDir out_dir;
+
+    auto cube = test::make_cube();
+    test::write_obj(cube, src_dir.path / "cube.obj");
+
+    auto config = PipelineConfig::from_string(
+        "pipeline:\n"
+        "  source: " + src_dir.path.string() + "\n"
+        "  output: " + out_dir.path.string() + "\n"
+        "  target_formats: [usda, urdf, mjcf, glb]\n"
+        "\n"
+        "stages:\n"
+        "  ingest:\n"
+        "    formats: [obj]\n"
+        "  collision:\n"
+        "    method: convex_hull\n"
+        "  physics:\n"
+        "    mass_estimation: geometry\n"
+        "  validate:\n"
+        "    mesh_integrity: true\n"
+        "  export:\n"
+        "    output_dir: " + out_dir.path.string() + "\n"
+        "    catalog: true\n"
+    );
+
+    Pipeline pipeline(std::move(config));
+    pipeline.build();
+
+    auto report = pipeline.run();
+
+    REQUIRE(report.total_assets == 1);
+    REQUIRE(report.failed == 0);
+
+    // Verify each export format produced a file
+    REQUIRE(std::filesystem::exists(out_dir.path / "usda" / "cube.usda"));
+    REQUIRE(std::filesystem::exists(out_dir.path / "urdf" / "cube.urdf"));
+    REQUIRE(std::filesystem::exists(out_dir.path / "mjcf" / "cube.xml"));
+    REQUIRE(std::filesystem::exists(out_dir.path / "glb" / "cube.glb"));
+
+    // All should be non-empty
+    REQUIRE(std::filesystem::file_size(out_dir.path / "usda" / "cube.usda") > 0);
+    REQUIRE(std::filesystem::file_size(out_dir.path / "urdf" / "cube.urdf") > 0);
+    REQUIRE(std::filesystem::file_size(out_dir.path / "mjcf" / "cube.xml") > 0);
+    REQUIRE(std::filesystem::file_size(out_dir.path / "glb" / "cube.glb") > 0);
+
+    // Verify catalog has export_targets for all 4
+    auto catalog_path = out_dir.path / "cube.catalog.json";
+    REQUIRE(std::filesystem::exists(catalog_path));
+
+    std::ifstream f(catalog_path);
+    std::string contents((std::istreambuf_iterator<char>(f)),
+                          std::istreambuf_iterator<char>());
+    auto json = nlohmann::json::parse(contents);
+
+    REQUIRE(json.contains("export_targets"));
+    auto& targets = json["export_targets"];
+    REQUIRE(targets.contains("usda"));
+    REQUIRE(targets.contains("urdf"));
+    REQUIRE(targets.contains("mjcf"));
+    REQUIRE(targets.contains("glb"));
+}
+
+// ─── Single Asset Pipeline ───────────────────────────────────────
+
 TEST_CASE("Pipeline — run_single with programmatic asset", "[integration]") {
     TempDir src_dir;
     TempDir out_dir;
