@@ -1,5 +1,7 @@
 #include "simforge/pipeline/builtin_stages.h"
 
+#include <fstream>
+
 #include <spdlog/spdlog.h>
 
 namespace simforge::stages {
