@@ -14,36 +14,15 @@ raw_assets/               sim_ready/
 
 ## Quickstart
 
-### Prerequisites
-
-- C++20 compiler (GCC 11+, Clang 14+, MSVC 2022+)
-- CMake 3.20+
-- Ninja (recommended) or Make
-
-### Build
-
 ```bash
 cmake -B build -G Ninja
 cmake --build build
+./build/src/simforge init                              # generate simforge.yaml
+./build/src/simforge process -c simforge.yaml --dry-run # preview the pipeline
+./build/src/simforge process -c simforge.yaml           # run it
 ```
 
-### Run
-
-```bash
-# Generate a default config
-./build/simforge init
-
-# Process assets
-./build/simforge process -c simforge.yaml
-```
-
-### Run tests
-
-```bash
-cmake -B build -G Ninja -DSIMFORGE_BUILD_TESTS=ON
-cmake --build build
-ctest --test-dir build --output-on-failure
-```
+See [QUICKSTART.md](QUICKSTART.md) for a full end-to-end walkthrough.
 
 ## Architecture
 
@@ -121,6 +100,7 @@ simforge/
 ├── samples/                   # Sample assets (OBJ, STL, GLTF, URDF, MJCF)
 ├── CMakeLists.txt             # Build configuration
 ├── DESIGN.md                  # Full design document
+├── QUICKSTART.md              # End-to-end walkthrough
 └── simforge.yaml.example      # Example pipeline config
 ```
 
