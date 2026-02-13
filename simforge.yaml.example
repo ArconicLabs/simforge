@@ -1,0 +1,56 @@
+# simforge.yaml — asset pipeline configuration
+# Run: simforge process -c simforge.yaml
+# Docs: https://github.com/aberrest/simforge
+
+pipeline:
+  source: ./samples/
+  output: ./sim_ready/
+
+  # Export to one or more target formats.
+  # Each asset is exported to every format listed here.
+  # Supported: usd, usda, usdc, urdf, mjcf, gltf, glb, obj, stl, fbx
+  target_formats: [usd, urdf, mjcf]
+
+stages:
+  ingest:
+    formats: [obj, fbx, gltf, glb, stl, step, iges, urdf, mjcf, dae]
+
+  collision:
+    method: coacd               # coacd | convex_hull | triangle_mesh | primitive
+    threshold: 0.05             # CoACD concavity threshold (lower = more precise)
+    max_hulls: 32
+    resolution: 2000
+
+  physics:
+    mass_estimation: geometry   # geometry | explicit | lookup
+    density: 1000.0             # kg/m³ (water = 1000, plastic ≈ 950, steel ≈ 7800)
+    friction: 0.5
+    restitution: 0.3
+
+  optimize:
+    lod_levels: [high, medium, low]
+    max_triangles: [50000, 10000, 2000]
+
+  validate:
+    watertight: true
+    physics_plausibility: true
+    collision_correctness: true
+    mesh_integrity: true
+    scale_sanity: true
+    fail_on_warning: false
+
+  export:
+    # Override target_formats per-stage, or omit to use pipeline-level setting.
+    # Simple list:
+    formats: [usd, urdf, mjcf]
+
+    # Advanced: per-format output subdirectories
+    # formats:
+    #   - format: usd
+    #     subdir: isaac/
+    #   - format: urdf
+    #     subdir: gazebo/
+    #   - format: mjcf
+    #     subdir: mujoco/
+
+    catalog: true
