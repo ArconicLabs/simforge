@@ -67,6 +67,14 @@ set(TINYGLTF_HEADER_ONLY ON CACHE BOOL "" FORCE)
 set(TINYGLTF_INSTALL OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(tinygltf)
 
+# meshoptimizer for LOD generation (always-on, zero external deps)
+FetchContent_Declare(
+    meshoptimizer
+    GIT_REPOSITORY https://github.com/zeux/meshoptimizer.git
+    GIT_TAG        v0.22
+)
+FetchContent_MakeAvailable(meshoptimizer)
+
 # Optional: Assimp for mesh I/O
 if(SIMFORGE_USE_ASSIMP)
     find_package(assimp QUIET)
