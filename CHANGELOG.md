@@ -8,6 +8,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This pr
 
 ### Added
 
+- **meshoptimizer LOD adapter**: Always-on mesh decimation via `meshopt_simplify()` quadric-error simplification — zero external dependencies, replaces planned Open3D adapter
+- **Primitive fitting collision generator**: PCA-based box/sphere/capsule fitting with automatic tightest-volume selection — zero external dependencies
+- **CoACD collision adapter**: High-quality convex decomposition via the CoACD library, gated by `SIMFORGE_USE_COACD` (OFF by default)
+- **Primitive fitter header**: `fit_obb()`, `fit_sphere()`, `fit_capsule()` public API in `simforge/adapters/primitive_fitter.h`
+- **Dependencies**: meshoptimizer v0.22 via FetchContent (always-on), CoACD v1.0.1 via find_package/FetchContent (optional)
+- **Collision + LOD tests**: 8 unit tests covering meshoptimizer decimation, primitive fitting (OBB, sphere, capsule), and primitive generator selection
+- **Integration tests**: LOD pipeline test (optimize stage with meshoptimizer) and primitive collision pipeline test
+
+### Changed
+
+- **CollisionStage**: Default generator now auto-routes based on collision method — `primitive` method uses "primitive" generator, `convex_decomposition` uses "coacd" generator
+- **OptimizeStage**: LOD generation now uses meshoptimizer instead of copying the original mesh when a generator is available
+
 - **USDA exporter**: ASCII USD output with visual meshes, collision scope, and UsdPhysics schema attributes — no OpenUSD SDK required
 - **URDF exporter**: Single-link `<robot>` XML with external OBJ meshes in `meshes/` and `<inertial>` blocks via tinyxml2
 - **MJCF exporter**: MuJoCo `<mujoco>` XML with STL mesh assets in `assets/`, physics material defaults, and inertial properties via tinyxml2
