@@ -13,6 +13,7 @@ add_library(simforge_core STATIC
     adapters/mjcf_exporter.cpp
     adapters/gltf_exporter.cpp
     adapters/meshopt_adapter.cpp
+    adapters/primitive_fitter.cpp
     validators/validator.cpp
 )
 
