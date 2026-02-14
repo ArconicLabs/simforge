@@ -92,6 +92,22 @@ if(SIMFORGE_USE_ASSIMP)
     add_compile_definitions(SIMFORGE_HAS_ASSIMP)
 endif()
 
+# Optional: CoACD for convex decomposition (heavy deps: OpenVDB, Boost, TBB)
+if(SIMFORGE_USE_COACD)
+    find_package(coacd QUIET)
+    if(NOT coacd_FOUND)
+        message(STATUS "CoACD not found, fetching from source...")
+        cmake_minimum_required(VERSION 3.24)
+        FetchContent_Declare(
+            coacd
+            GIT_REPOSITORY https://github.com/SarahWeiii/CoACD.git
+            GIT_TAG        v1.0.1
+        )
+        FetchContent_MakeAvailable(coacd)
+    endif()
+    add_compile_definitions(SIMFORGE_HAS_COACD)
+endif()
+
 # ─── Core Library ───────────────────────────────────────────────────
 add_subdirectory(src)
 
