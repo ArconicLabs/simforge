@@ -11,6 +11,7 @@ add_executable(simforge_tests
     test_validators.cpp
     test_adapters.cpp
     test_exporters.cpp
+    test_collision_lod.cpp
     test_integration.cpp
 )
 
