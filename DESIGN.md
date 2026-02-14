@@ -45,9 +45,9 @@ simforge is a declarative pipeline harness that takes `raw assets in, sim-ready 
    │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐            │
    │  │Importers │  │Exporters │  │Collision │  │   LOD    │            │
    │  │          │  │          │  │Generators│  │Generators│            │
-   │  │• Assimp  │  │• USDA    │  │• CoACD   │  │• Open3D  │            │
-   │  │• OBJ     │  │• URDF    │  │• V-HACD  │  │• Meshlab │            │
-   │  │• STL     │  │• MJCF    │  │• Builtin │  │• Builtin │            │
+   │  │• Assimp  │  │• USDA    │  │• CoACD   │  │• meshopt │            │
+   │  │• OBJ     │  │• URDF    │  │• Primitive│  │          │            │
+   │  │• STL     │  │• MJCF    │  │• Builtin │  │          │            │
    │  │• URDF    │  │• GLTF    │  │          │  │          │            │
    │  │• MJCF    │  │• OBJ     │  │          │  │          │            │
    │  └──────────┘  └──────────┘  └──────────┘  └──────────┘            │
@@ -168,7 +168,8 @@ The `#ifdef` guards are important. simforge compiles and runs with zero external
 | `SIMFORGE_USE_ASSIMP` | Assimp 5.4+ | FBX, GLTF, GLB, DAE import |
 | `SIMFORGE_USE_COACD` | CoACD | High-quality convex decomposition |
 | `SIMFORGE_USE_OPENUSD` | OpenUSD | USD/USDA/USDC import + export |
-| `SIMFORGE_USE_OPEN3D` | Open3D | Mesh decimation, ICP, normals |
+| (always-on) | meshoptimizer | LOD mesh decimation via quadric-error simplification |
+| (always-on) | (built-in) | PCA-based primitive fitting (box/sphere/capsule) |
 
 ### 5.3 Adapter Priority & Fallback
 
@@ -178,55 +179,48 @@ For collision generation, if no adapter is registered, the CollisionStage falls 
 
 ### 5.4 Writing a New Adapter
 
-To add support for a new external tool, implement one of the four interfaces and register it. Example — wrapping the Open3D library for mesh decimation:
+To add support for a new external tool, implement one of the four interfaces and register it. Example — the meshoptimizer LOD adapter (actual implementation in `src/adapters/meshopt_adapter.cpp`):
 
 ```cpp
-// src/adapters/open3d_adapter.cpp
-
-#ifdef SIMFORGE_HAS_OPEN3D
-#include <open3d/Open3D.h>
+// src/adapters/meshopt_adapter.cpp
 #include "simforge/adapters/adapter.h"
+#include <meshoptimizer.h>
 
 namespace simforge::adapters {
 
-class Open3DDecimator : public LODGenerator {
+class MeshoptimizerDecimator : public LODGenerator {
 public:
-    std::string name() const override { return "open3d"; }
+    std::string name() const override { return "meshoptimizer"; }
 
     Mesh decimate(const Mesh& source, const LODParams& params) override {
-        // Convert simforge::Mesh → open3d::geometry::TriangleMesh
-        auto o3d_mesh = std::make_shared<open3d::geometry::TriangleMesh>();
+        // Pack faces into flat index buffer
+        std::vector<uint32_t> indices(source.faces.size() * 3);
+        for (size_t i = 0; i < source.faces.size(); i++) {
+            indices[i * 3 + 0] = source.faces[i].v0;
+            indices[i * 3 + 1] = source.faces[i].v1;
+            indices[i * 3 + 2] = source.faces[i].v2;
+        }
 
-        o3d_mesh->vertices_.reserve(source.vertices.size());
-        for (const auto& v : source.vertices)
-            o3d_mesh->vertices_.emplace_back(v.x, v.y, v.z);
+        // Call meshopt_simplify
+        std::vector<uint32_t> dest(indices.size());
+        float result_error = 0.0f;
+        size_t result_count = meshopt_simplify(
+            dest.data(), indices.data(), indices.size(),
+            /* positions */, source.vertices.size(), sizeof(float) * 3,
+            params.target_triangles * 3, 1.0f - params.quality,
+            0, &result_error);
 
-        o3d_mesh->triangles_.reserve(source.faces.size());
-        for (const auto& f : source.faces)
-            o3d_mesh->triangles_.emplace_back(f.v0, f.v1, f.v2);
-
-        // Decimate
-        auto simplified = o3d_mesh->SimplifyQuadricDecimation(
-            params.target_triangles);
-
-        // Convert back → simforge::Mesh
+        // Rebuild Mesh from simplified index buffer
         Mesh result;
-        result.name = source.name + "_lod";
-        result.vertices.reserve(simplified->vertices_.size());
-        for (const auto& v : simplified->vertices_)
-            result.vertices.push_back({(float)v.x(), (float)v.y(), (float)v.z()});
-
-        result.faces.reserve(simplified->triangles_.size());
-        for (const auto& t : simplified->triangles_)
-            result.faces.push_back({(uint32_t)t.x(), (uint32_t)t.y(), (uint32_t)t.z()});
-
+        result.vertices = source.vertices;
+        for (size_t i = 0; i + 2 < result_count; i += 3)
+            result.faces.push_back({dest[i], dest[i+1], dest[i+2]});
         result.recompute_bounds();
         return result;
     }
 };
 
 }  // namespace simforge::adapters
-#endif
 ```
 
 The pattern is always: convert in → call library → convert out. The adapter owns the translation; the stage never sees library-specific types.
@@ -644,206 +638,11 @@ private:
 };
 ```
 
-## 9. Build Phases
+## 9. Roadmap
 
-The project is structured into four implementation phases. Each phase produces a shippable artifact — there is no phase that is "just infrastructure."
+Implementation phases, priorities, and planned features are tracked in [ROADMAP.md](ROADMAP.md).
 
-### Phase 1: Core Pipeline + Builtins (Current State)
-
-**Status: Scaffolded. ~3,000 lines.**
-
-What exists:
-- Full type system (`Asset`, `Mesh`, `Vec3`, `Physics`, `Collision`, `LOD`, `PBRMaterial`)
-- Pipeline engine (YAML config → stage chain → sequential execution → JSON report)
-- Stage interface + registry with auto-registration macro
-- Adapter interface (`MeshImporter`, `MeshExporter`, `CollisionGenerator`, `LODGenerator`)
-- 6 built-in stages: ingest, collision, physics, optimize, validate, export
-- 3 importers: OBJ (builtin), STL binary (builtin), Assimp (optional, gated)
-- 5 validators: watertight, physics plausibility, collision correctness, mesh integrity, scale sanity
-- CLI with 6 subcommands
-- Multi-format export config + output directory structure
-- Test suite (Catch2) for types, pipeline config, validators
-
-What needs implementation to make Phase 1 shippable:
-- [ ] Wire up Assimp adapter: verify it compiles and passes import tests with real assets
-- [ ] Implement `Mesh::recompute_bounds()` call after OBJ/STL import (currently in Ingest stage — verify)
-- [ ] Add `--format` flag to CLI `process` subcommand as shorthand for `target_formats`
-- [ ] Flesh out JSON report with per-stage timing breakdown
-- [ ] Integration test: OBJ file → full pipeline → catalog.json on disk
-
-**Estimated effort: 1 week.**
-
-### Phase 2: Export Adapters
-
-This is the highest-leverage work. Without exporters, simforge is an analysis tool. With them, it's a production pipeline.
-
-Priority order (by user reach):
-
-#### 2a. USDA Text Exporter
-- Write USD in ASCII format without requiring the OpenUSD SDK
-- Emit visual mesh, collision mesh, physics properties using UsdGeom + UsdPhysics schemas
-- Reference external mesh files for heavy geometry (don't inline 50K vertices in text)
-- Follow the NVIDIA/Disney/Intrinsic OpenUSD Asset Structure Pipeline conventions
-- Validate output by loading in `usdview` or Isaac Sim
-
-```cpp
-// Registration
-mgr.register_exporter(std::make_unique<USDAExporter>());  // always available
-```
-
-#### 2b. URDF Exporter
-- Emit `<robot>` with `<link>` and `<joint>` elements
-- Write visual and collision meshes as separate OBJ/STL files in a `meshes/` subdirectory
-- Emit `<inertial>` block with mass, inertia tensor, center of mass
-- Handle the single-link case (most object assets) and the multi-link case (articulated robots)
-- Validate output by loading in Gazebo or `check_urdf`
-
-#### 2c. MJCF Exporter
-- Emit `<mujoco>` with `<worldbody>`, `<body>`, `<geom>`, `<joint>` elements
-- Write mesh files as separate STL/OBJ in an `assets/` subdirectory
-- Emit `<inertial>` with mass, center of mass, diagonal inertia
-- Map physics material properties to MuJoCo `<default>` classes
-- Validate output by loading in MuJoCo's `simulate` viewer
-
-#### 2d. GLTF Exporter
-- Use tinygltf (header-only, no heavy deps) for binary GLTF output
-- Include PBR materials (GLTF's native strength)
-- Embed or reference textures
-- No physics or collision data (GLTF doesn't support it — emit warning)
-
-**Estimated effort: 3–4 weeks for all four.**
-
-### Phase 3: Collision + LOD Adapters
-
-#### 3a. CoACD Adapter
-CoACD produces significantly better convex decompositions than V-HACD for objects with holes and fine details. It's a C++ library with a clean API.
-
-```cpp
-#ifdef SIMFORGE_HAS_COACD
-#include <coacd/coacd.h>
-
-class CoACDGenerator : public CollisionGenerator {
-public:
-    std::string name() const override { return "coacd"; }
-
-    CollisionMesh generate(const Mesh& visual, const CollisionParams& params) override {
-        coacd::Mesh input;
-        // Convert simforge::Mesh → coacd::Mesh (vertices + triangles)
-        for (const auto& v : visual.vertices)
-            input.vertices.push_back({v.x, v.y, v.z});
-        for (const auto& f : visual.faces)
-            input.triangles.push_back({f.v0, f.v1, f.v2});
-
-        coacd::Params coacd_params;
-        coacd_params.threshold = params.threshold;
-        coacd_params.max_convex_hull = params.max_hulls;
-        coacd_params.resolution = params.resolution;
-        coacd_params.preprocess = params.preprocess;
-
-        auto result = coacd::CoACD(input, coacd_params);
-
-        // Convert back
-        CollisionMesh coll;
-        coll.type = CollisionType::ConvexDecomposition;
-        coll.hull_count = result.size();
-        coll.total_volume = 0.0f;
-
-        for (const auto& hull : result) {
-            Mesh m;
-            for (const auto& v : hull.vertices)
-                m.vertices.push_back({v[0], v[1], v[2]});
-            for (const auto& t : hull.triangles)
-                m.faces.push_back({(uint32_t)t[0], (uint32_t)t[1], (uint32_t)t[2]});
-            m.recompute_bounds();
-            coll.total_volume += m.compute_volume();
-            coll.hulls.push_back(std::move(m));
-        }
-
-        return coll;
-    }
-};
-#endif
-```
-
-#### 3b. Open3D LOD Adapter
-For mesh decimation (quadric simplification). Straightforward wrapper — see §5.4 for the implementation sketch.
-
-#### 3c. Primitive Fitting (Builtin)
-For simple objects where a box/sphere/capsule collision shape is more appropriate than a decomposition. Fit the AABB, oriented bounding box, or minimum bounding sphere to the visual mesh. No external dependencies.
-
-**Estimated effort: 2 weeks.**
-
-### Phase 4: Polish + Python
-
-#### 4a. URDF/MJCF Importers
-Currently simforge can't *ingest* URDF or MJCF files — only mesh formats. These importers would parse the XML, extract mesh references, resolve relative paths, and build an Asset with the correct joint hierarchy stored in metadata. This enables the "convert between robot description formats" use case.
-
-```cpp
-class URDFImporter : public MeshImporter {
-    // Parse XML → find <mesh filename="..."/> references
-    // Load each referenced mesh file via the adapter manager
-    // Store joint tree in asset.metadata["joints"]
-    // Store link names in asset.metadata["links"]
-};
-```
-
-#### 4b. Python Bindings
-pybind11 wrappers for the core types and pipeline. The target API:
-
-```python
-import simforge
-
-# Load config and run
-pipeline = simforge.Pipeline.from_config("simforge.yaml")
-report = pipeline.run()
-
-# Or programmatically
-pipeline = simforge.Pipeline()
-pipeline.add_stage("ingest", {"formats": ["obj", "stl"]})
-pipeline.add_stage("collision", {"method": "coacd", "threshold": 0.05})
-pipeline.add_stage("validate")
-pipeline.add_stage("export", {"formats": ["usd", "urdf"]})
-
-report = pipeline.run("./raw_assets/", "./sim_ready/")
-
-for asset in report.assets:
-    print(f"{asset.name}: {asset.status} ({asset.time_ms:.0f}ms)")
-    for v in asset.validations:
-        if not v.passed:
-            print(f"  WARN: {v.check_name}: {v.message}")
-```
-
-#### 4c. Parallel Asset Processing
-Assets are independent — they don't share state. Parallelize at the pipeline level using a thread pool:
-
-```cpp
-PipelineReport Pipeline::run() {
-    auto assets = discover_assets();
-    // ...
-
-    // Process assets in parallel (one thread per asset, capped at hardware_concurrency)
-    std::vector<std::future<AssetReport>> futures;
-    for (auto& asset : assets) {
-        futures.push_back(std::async(std::launch::async, [&, a = std::move(asset)]() mutable {
-            return run_single(std::move(a));
-        }));
-    }
-
-    for (auto& f : futures) {
-        auto report = f.get();
-        // collect...
-    }
-}
-```
-
-Note: this requires the `AdapterManager` lookups to be thread-safe (they currently are — the registry is populated once at startup, then read-only). Stage instances would need to be per-thread or stateless.
-
-#### 4d. Headless Visual Diff Validation
-Render the source asset and the processed asset side-by-side using a headless GPU renderer (EGL + OpenGL or Vulkan compute). Compare pixel-by-pixel with an SSIM threshold. This catches silent mesh corruption that geometry-only validators miss.
-
-This is the hardest validator to implement but the most valuable for production pipelines. Defer to Phase 4 unless a client needs it sooner.
-
-**Estimated effort: 4–6 weeks for all of Phase 4.**
+The sections below document implementation patterns for upcoming work. They are kept here as design reference for contributors — the roadmap is the source of truth for what's planned and when.
 
 ## 10. Build & Dependency Management
 

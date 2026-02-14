@@ -14,36 +14,15 @@ raw_assets/               sim_ready/
 
 ## Quickstart
 
-### Prerequisites
-
-- C++20 compiler (GCC 11+, Clang 14+, MSVC 2022+)
-- CMake 3.20+
-- Ninja (recommended) or Make
-
-### Build
-
 ```bash
 cmake -B build -G Ninja
 cmake --build build
+./build/src/simforge init                              # generate simforge.yaml
+./build/src/simforge process -c simforge.yaml --dry-run # preview the pipeline
+./build/src/simforge process -c simforge.yaml           # run it
 ```
 
-### Run
-
-```bash
-# Generate a default config
-./build/simforge init
-
-# Process assets
-./build/simforge process -c simforge.yaml
-```
-
-### Run tests
-
-```bash
-cmake -B build -G Ninja -DSIMFORGE_BUILD_TESTS=ON
-cmake --build build
-ctest --test-dir build --output-on-failure
-```
+See [QUICKSTART.md](QUICKSTART.md) for a full end-to-end walkthrough.
 
 ## Architecture
 
@@ -54,15 +33,16 @@ SimForge has four layers, each with a single responsibility:
 3. **Stages** — Self-contained processing steps. Each stage implements `Stage::process(Asset) → Result<Asset>`. Stages are stateless between assets and configured once from YAML.
 4. **Adapters** — Thin wrappers around external libraries (Assimp, CoACD, etc.). The `AdapterManager` singleton routes requests to the best available adapter.
 
-See [DESIGN.md](DESIGN.md) for the full design document.
+See [DESIGN.md](DESIGN.md) for the full design document, [ROADMAP.md](ROADMAP.md) for planned work, and [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ```
 ┌──────────┐   ┌────────────┐   ┌─────────┐   ┌──────────┐   ┌───────────┐   ┌────────┐
 │ Ingest   │──▶│ Collision  │──▶│ Physics │──▶│ Optimize │──▶│ Validate  │──▶│ Export │
 │          │   │            │   │         │   │          │   │           │   │        │
-│ Assimp   │   │ CoACD      │   │ Density │   │ LOD gen  │   │ Watertight│   │ USD    │
-│ builtin  │   │ V-HACD     │   │ Explicit│   │ Decimate │   │ Physics   │   │ GLTF   │
-│ OBJ/STL  │   │ ConvexHull │   │ Lookup  │   │          │   │ Collision │   │        │
+│ Assimp   │   │ CoACD      │   │ Density │   │meshopt   │   │ Watertight│   │ USDA   │
+│ builtin  │   │ Primitive  │   │ Explicit│   │ Decimate │   │ Physics   │   │ URDF   │
+│ OBJ/STL  │   │ ConvexHull │   │ Lookup  │   │          │   │ Collision │   │ MJCF   │
+│          │   │            │   │         │   │          │   │           │   │ GLTF   │
 └──────────┘   └────────────┘   └─────────┘   └──────────┘   └───────────┘   └────────┘
 ```
 
@@ -101,12 +81,12 @@ simforge/
 ├── .github/workflows/         # CI/CD
 │   └── ci.yml                 #   Build matrix + gate job
 ├── include/simforge/          # Public headers
-│   ├── adapters/              #   Adapter interface (MeshImporter/MeshExporter)
+│   ├── adapters/              #   Adapter interfaces, mesh writer, exporter headers, primitive fitter
 │   ├── core/                  #   Core types (Asset, Mesh, Vec3, Physics)
 │   ├── pipeline/              #   Pipeline engine, stage interface, builtins
 │   └── validators/            #   Validator interface
 ├── src/                       # Implementation
-│   ├── adapters/              #   Builtin + Assimp adapters
+│   ├── adapters/              #   Importers, exporters, meshopt LOD, primitive fitter, CoACD
 │   ├── cli/                   #   CLI entry point (main.cpp)
 │   ├── core/                  #   Core type implementations
 │   ├── pipeline/              #   Pipeline and stage implementations
@@ -117,10 +97,15 @@ simforge/
 │   ├── test_validators.cpp    #   Validator tests
 │   ├── test_pipeline.cpp      #   Pipeline config + stage registry tests
 │   ├── test_adapters.cpp      #   OBJ/STL importer round-trip tests
+│   ├── test_exporters.cpp     #   USDA/URDF/MJCF/GLTF exporter unit tests
+│   ├── test_collision_lod.cpp #   Collision + LOD adapter tests
 │   └── test_integration.cpp   #   End-to-end pipeline tests
 ├── samples/                   # Sample assets (OBJ, STL, GLTF, URDF, MJCF)
 ├── CMakeLists.txt             # Build configuration
+├── CHANGELOG.md               # Release history
 ├── DESIGN.md                  # Full design document
+├── QUICKSTART.md              # End-to-end walkthrough
+├── ROADMAP.md                 # Planned features and phases
 └── simforge.yaml.example      # Example pipeline config
 ```
 
@@ -167,6 +152,10 @@ All dependencies are fetched automatically via CMake `FetchContent`:
 - [CLI11](https://github.com/CLIUtils/CLI11) — Command-line parsing
 - [nlohmann/json](https://github.com/nlohmann/json) — Metadata serialization
 - [Assimp](https://github.com/assimp/assimp) — Mesh I/O (optional, enabled by default)
+- [tinyxml2](https://github.com/leethomason/tinyxml2) — URDF/MJCF XML generation
+- [tinygltf](https://github.com/syoyo/tinygltf) — GLTF binary export
+- [meshoptimizer](https://github.com/zeux/meshoptimizer) — LOD mesh decimation
+- [CoACD](https://github.com/SarahWeiii/CoACD) — Convex decomposition (optional, off by default)
 
 ## License
 

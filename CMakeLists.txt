@@ -47,6 +47,34 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(json)
 
+# tinyxml2 for URDF/MJCF XML generation
+FetchContent_Declare(
+    tinyxml2
+    GIT_REPOSITORY https://github.com/leethomason/tinyxml2.git
+    GIT_TAG        10.0.0
+)
+set(tinyxml2_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(tinyxml2)
+
+# tinygltf for GLTF binary export (header-only)
+FetchContent_Declare(
+    tinygltf
+    GIT_REPOSITORY https://github.com/syoyo/tinygltf.git
+    GIT_TAG        v2.9.3
+)
+set(TINYGLTF_BUILD_LOADER_EXAMPLE OFF CACHE BOOL "" FORCE)
+set(TINYGLTF_HEADER_ONLY ON CACHE BOOL "" FORCE)
+set(TINYGLTF_INSTALL OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(tinygltf)
+
+# meshoptimizer for LOD generation (always-on, zero external deps)
+FetchContent_Declare(
+    meshoptimizer
+    GIT_REPOSITORY https://github.com/zeux/meshoptimizer.git
+    GIT_TAG        v0.22
+)
+FetchContent_MakeAvailable(meshoptimizer)
+
 # Optional: Assimp for mesh I/O
 if(SIMFORGE_USE_ASSIMP)
     find_package(assimp QUIET)
@@ -62,6 +90,22 @@ if(SIMFORGE_USE_ASSIMP)
         FetchContent_MakeAvailable(assimp)
     endif()
     add_compile_definitions(SIMFORGE_HAS_ASSIMP)
+endif()
+
+# Optional: CoACD for convex decomposition (heavy deps: OpenVDB, Boost, TBB)
+if(SIMFORGE_USE_COACD)
+    find_package(coacd QUIET)
+    if(NOT coacd_FOUND)
+        message(STATUS "CoACD not found, fetching from source...")
+        cmake_minimum_required(VERSION 3.24)
+        FetchContent_Declare(
+            coacd
+            GIT_REPOSITORY https://github.com/SarahWeiii/CoACD.git
+            GIT_TAG        v1.0.1
+        )
+        FetchContent_MakeAvailable(coacd)
+    endif()
+    add_compile_definitions(SIMFORGE_HAS_COACD)
 endif()
 
 # ─── Core Library ───────────────────────────────────────────────────

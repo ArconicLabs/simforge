@@ -104,7 +104,22 @@ void CollisionStage::configure(const YAML::Node& config) {
     params_.threshold  = config["threshold"].as<float>(params_.threshold);
     params_.max_hulls  = config["max_hulls"].as<uint32_t>(params_.max_hulls);
     params_.resolution = config["resolution"].as<uint32_t>(params_.resolution);
-    generator_name_    = config["generator"].as<std::string>(generator_name_);
+
+    // Route default generator name based on collision method
+    if (!config["generator"]) {
+        switch (params_.method) {
+            case CollisionType::Primitive:
+                generator_name_ = "primitive";
+                break;
+            case CollisionType::ConvexDecomposition:
+                generator_name_ = "coacd";
+                break;
+            default:
+                break;
+        }
+    } else {
+        generator_name_ = config["generator"].as<std::string>(generator_name_);
+    }
 }
 
 Result<Asset> CollisionStage::process(Asset asset) {

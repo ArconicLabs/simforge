@@ -1,4 +1,5 @@
 #include "simforge/adapters/adapter.h"
+#include "simforge/adapters/exporters.h"
 
 #include <fstream>
 
@@ -251,6 +252,15 @@ std::vector<Mesh> OBJImporter::import(const fs::path& path) {
     return {mesh};
 }
 
+// ─── Adapter forward declarations ─────────────────────────────────
+
+std::unique_ptr<LODGenerator> make_meshoptimizer_decimator();
+std::unique_ptr<CollisionGenerator> make_primitive_fitter();
+
+#ifdef SIMFORGE_HAS_COACD
+std::unique_ptr<CollisionGenerator> make_coacd_generator();
+#endif
+
 // ─── Adapter Registration ──────────────────────────────────────────
 
 /// Called once at startup to register all built-in adapters.
@@ -272,6 +282,26 @@ void register_builtin_adapters() {
 #endif
 
     spdlog::info("Registered {} importer(s)", mgr.list_importers().size());
+
+    // Export adapters
+    mgr.register_exporter(make_usda_exporter());
+    mgr.register_exporter(make_urdf_exporter());
+    mgr.register_exporter(make_mjcf_exporter());
+    mgr.register_exporter(make_gltf_exporter());
+
+    spdlog::info("Registered {} exporter(s)", mgr.list_exporters().size());
+
+    // LOD generator (always available, zero deps)
+    mgr.register_lod_generator(make_meshoptimizer_decimator());
+
+    // Collision generators
+    mgr.register_collision_generator(make_primitive_fitter());
+
+#ifdef SIMFORGE_HAS_COACD
+    mgr.register_collision_generator(make_coacd_generator());
+#endif
+
+    spdlog::info("Registered collision + LOD adapters");
 }
 
 }  // namespace simforge::adapters
