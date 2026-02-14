@@ -255,6 +255,7 @@ std::vector<Mesh> OBJImporter::import(const fs::path& path) {
 // ─── Adapter forward declarations ─────────────────────────────────
 
 std::unique_ptr<LODGenerator> make_meshoptimizer_decimator();
+std::unique_ptr<CollisionGenerator> make_primitive_fitter();
 
 // ─── Adapter Registration ──────────────────────────────────────────
 
@@ -288,6 +289,9 @@ void register_builtin_adapters() {
 
     // LOD generator (always available, zero deps)
     mgr.register_lod_generator(make_meshoptimizer_decimator());
+
+    // Collision generators
+    mgr.register_collision_generator(make_primitive_fitter());
 }
 
 }  // namespace simforge::adapters
