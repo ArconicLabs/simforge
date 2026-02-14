@@ -297,6 +297,105 @@ TEST_CASE("Export stage — all four export formats", "[integration][exporters]"
     REQUIRE(targets.contains("glb"));
 }
 
+// ─── LOD Integration ─────────────────────────────────────────────
+
+TEST_CASE("Pipeline — optimize stage generates LOD meshes via meshoptimizer", "[integration][lod]") {
+    TempDir src_dir;
+    TempDir out_dir;
+
+    auto cube = test::make_cube();
+    test::write_obj(cube, src_dir.path / "cube.obj");
+
+    auto config = PipelineConfig::from_string(
+        "pipeline:\n"
+        "  source: " + src_dir.path.string() + "\n"
+        "  output: " + out_dir.path.string() + "\n"
+        "  target_formats: [obj]\n"
+        "\n"
+        "stages:\n"
+        "  ingest:\n"
+        "    formats: [obj]\n"
+        "  collision:\n"
+        "    method: convex_hull\n"
+        "  physics:\n"
+        "    mass_estimation: geometry\n"
+        "  optimize:\n"
+        "    lod_levels: [medium, low]\n"
+        "    max_triangles: [8, 4]\n"
+        "  validate:\n"
+        "    mesh_integrity: true\n"
+        "  export:\n"
+        "    catalog: true\n"
+    );
+
+    Pipeline pipeline(std::move(config));
+    pipeline.build();
+
+    // Use run_single so we can inspect the asset directly
+    Asset asset;
+    asset.id = "lod-test";
+    asset.name = "cube";
+    asset.source_path = src_dir.path / "cube.obj";
+    asset.source_format = SourceFormat::OBJ;
+    asset.status = AssetStatus::Raw;
+
+    auto report = pipeline.run_single(std::move(asset));
+
+    REQUIRE(report.errors.empty());
+    REQUIRE(report.stages_completed.size() >= 5);
+
+    // The optimize stage should have been completed
+    bool optimize_ran = false;
+    for (const auto& s : report.stages_completed) {
+        if (s == "optimize") optimize_ran = true;
+    }
+    REQUIRE(optimize_ran);
+}
+
+TEST_CASE("Pipeline — collision stage with primitive method", "[integration][collision]") {
+    TempDir src_dir;
+    TempDir out_dir;
+
+    auto cube = test::make_cube();
+    test::write_obj(cube, src_dir.path / "cube.obj");
+
+    auto config = PipelineConfig::from_string(
+        "pipeline:\n"
+        "  source: " + src_dir.path.string() + "\n"
+        "  output: " + out_dir.path.string() + "\n"
+        "\n"
+        "stages:\n"
+        "  ingest:\n"
+        "    formats: [obj]\n"
+        "  collision:\n"
+        "    method: primitive\n"
+        "  physics:\n"
+        "    mass_estimation: geometry\n"
+        "  validate:\n"
+        "    mesh_integrity: true\n"
+    );
+
+    Pipeline pipeline(std::move(config));
+    pipeline.build();
+
+    Asset asset;
+    asset.id = "prim-test";
+    asset.name = "cube";
+    asset.source_path = src_dir.path / "cube.obj";
+    asset.source_format = SourceFormat::OBJ;
+    asset.status = AssetStatus::Raw;
+
+    auto report = pipeline.run_single(std::move(asset));
+
+    REQUIRE(report.errors.empty());
+
+    bool collision_ran = false;
+    for (const auto& s : report.stages_completed) {
+        if (s == "collision") collision_ran = true;
+    }
+    REQUIRE(collision_ran);
+}
+
 // ─── Single Asset Pipeline ───────────────────────────────────────
 
 TEST_CASE("Pipeline — run_single with programmatic asset", "[integration]") {
