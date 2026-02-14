@@ -14,6 +14,7 @@ add_library(simforge_core STATIC
     adapters/gltf_exporter.cpp
     adapters/meshopt_adapter.cpp
     adapters/primitive_fitter.cpp
+    adapters/coacd_adapter.cpp
     validators/validator.cpp
 )
 
@@ -35,6 +36,10 @@ target_include_directories(simforge_core PRIVATE
 
 if(SIMFORGE_USE_ASSIMP)
     target_link_libraries(simforge_core PUBLIC assimp::assimp)
+endif()
+
+if(SIMFORGE_USE_COACD)
+    target_link_libraries(simforge_core PUBLIC coacd::coacd)
 endif()
 
 # ─── CLI Executable ─────────────────────────────────────────────────
