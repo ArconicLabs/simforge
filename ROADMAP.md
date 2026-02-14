@@ -6,7 +6,7 @@ SimForge is an open-source pipeline harness that takes raw 3D assets and produce
 
 ## Current Status
 
-**Phase 2 (Export Adapters) is complete.** SimForge can ingest raw 3D assets, process them through the full pipeline, and export to USDA, URDF, MJCF, and GLTF formats. Collision and LOD adapter improvements are the next priority.
+**Phase 3 (Collision + LOD Adapters) is complete.** SimForge can ingest raw 3D assets, process them through the full pipeline with real collision decomposition and LOD generation, and export to USDA, URDF, MJCF, and GLTF formats. Articulated asset support and Python bindings are the next priority.
 
 ---
 
@@ -28,9 +28,10 @@ Replace placeholder fallbacks with real implementations.
 
 | Task | Description | Status |
 |------|-------------|--------|
-| CoACD adapter | High-quality convex decomposition via the CoACD library. Gated by `SIMFORGE_USE_COACD`. | Planned |
-| Open3D LOD adapter | Mesh decimation via quadric simplification. Gated by `SIMFORGE_USE_OPEN3D`. | Planned |
-| Primitive fitting | Fit box/sphere/capsule collision shapes to visual meshes. No external dependencies. | Planned |
+| CoACD adapter | High-quality convex decomposition via the CoACD library. Gated by `SIMFORGE_USE_COACD`. | Done |
+| meshoptimizer LOD adapter | Mesh decimation via `meshopt_simplify()`. Always-on, zero external deps. Replaces planned Open3D adapter. | Done |
+| Primitive fitting | Fit box/sphere/capsule collision shapes to visual meshes via PCA. No external dependencies. | Done |
+| CollisionStage routing | Default generator auto-selected from collision method (primitive → "primitive", coacd → "coacd"). | Done |
 
 ## Phase 4 — Articulated Asset Support + Python
 
