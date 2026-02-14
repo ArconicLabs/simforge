@@ -45,9 +45,9 @@ simforge is a declarative pipeline harness that takes `raw assets in, sim-ready 
    │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐            │
    │  │Importers │  │Exporters │  │Collision │  │   LOD    │            │
    │  │          │  │          │  │Generators│  │Generators│            │
-   │  │• Assimp  │  │• USDA    │  │• CoACD   │  │• Open3D  │            │
-   │  │• OBJ     │  │• URDF    │  │• V-HACD  │  │• Meshlab │            │
-   │  │• STL     │  │• MJCF    │  │• Builtin │  │• Builtin │            │
+   │  │• Assimp  │  │• USDA    │  │• CoACD   │  │• meshopt │            │
+   │  │• OBJ     │  │• URDF    │  │• Primitive│  │          │            │
+   │  │• STL     │  │• MJCF    │  │• Builtin │  │          │            │
    │  │• URDF    │  │• GLTF    │  │          │  │          │            │
    │  │• MJCF    │  │• OBJ     │  │          │  │          │            │
    │  └──────────┘  └──────────┘  └──────────┘  └──────────┘            │
@@ -168,7 +168,8 @@ The `#ifdef` guards are important. simforge compiles and runs with zero external
 | `SIMFORGE_USE_ASSIMP` | Assimp 5.4+ | FBX, GLTF, GLB, DAE import |
 | `SIMFORGE_USE_COACD` | CoACD | High-quality convex decomposition |
 | `SIMFORGE_USE_OPENUSD` | OpenUSD | USD/USDA/USDC import + export |
-| `SIMFORGE_USE_OPEN3D` | Open3D | Mesh decimation, ICP, normals |
+| (always-on) | meshoptimizer | LOD mesh decimation via quadric-error simplification |
+| (always-on) | (built-in) | PCA-based primitive fitting (box/sphere/capsule) |
 
 ### 5.3 Adapter Priority & Fallback
 
@@ -178,55 +179,48 @@ For collision generation, if no adapter is registered, the CollisionStage falls 
 
 ### 5.4 Writing a New Adapter
 
-To add support for a new external tool, implement one of the four interfaces and register it. Example — wrapping the Open3D library for mesh decimation:
+To add support for a new external tool, implement one of the four interfaces and register it. Example — the meshoptimizer LOD adapter (actual implementation in `src/adapters/meshopt_adapter.cpp`):
 
 ```cpp
-// src/adapters/open3d_adapter.cpp
-
-#ifdef SIMFORGE_HAS_OPEN3D
-#include <open3d/Open3D.h>
+// src/adapters/meshopt_adapter.cpp
 #include "simforge/adapters/adapter.h"
+#include <meshoptimizer.h>
 
 namespace simforge::adapters {
 
-class Open3DDecimator : public LODGenerator {
+class MeshoptimizerDecimator : public LODGenerator {
 public:
-    std::string name() const override { return "open3d"; }
+    std::string name() const override { return "meshoptimizer"; }
 
     Mesh decimate(const Mesh& source, const LODParams& params) override {
-        // Convert simforge::Mesh → open3d::geometry::TriangleMesh
-        auto o3d_mesh = std::make_shared<open3d::geometry::TriangleMesh>();
+        // Pack faces into flat index buffer
+        std::vector<uint32_t> indices(source.faces.size() * 3);
+        for (size_t i = 0; i < source.faces.size(); i++) {
+            indices[i * 3 + 0] = source.faces[i].v0;
+            indices[i * 3 + 1] = source.faces[i].v1;
+            indices[i * 3 + 2] = source.faces[i].v2;
+        }
 
-        o3d_mesh->vertices_.reserve(source.vertices.size());
-        for (const auto& v : source.vertices)
-            o3d_mesh->vertices_.emplace_back(v.x, v.y, v.z);
+        // Call meshopt_simplify
+        std::vector<uint32_t> dest(indices.size());
+        float result_error = 0.0f;
+        size_t result_count = meshopt_simplify(
+            dest.data(), indices.data(), indices.size(),
+            /* positions */, source.vertices.size(), sizeof(float) * 3,
+            params.target_triangles * 3, 1.0f - params.quality,
+            0, &result_error);
 
-        o3d_mesh->triangles_.reserve(source.faces.size());
-        for (const auto& f : source.faces)
-            o3d_mesh->triangles_.emplace_back(f.v0, f.v1, f.v2);
-
-        // Decimate
-        auto simplified = o3d_mesh->SimplifyQuadricDecimation(
-            params.target_triangles);
-
-        // Convert back → simforge::Mesh
+        // Rebuild Mesh from simplified index buffer
         Mesh result;
-        result.name = source.name + "_lod";
-        result.vertices.reserve(simplified->vertices_.size());
-        for (const auto& v : simplified->vertices_)
-            result.vertices.push_back({(float)v.x(), (float)v.y(), (float)v.z()});
-
-        result.faces.reserve(simplified->triangles_.size());
-        for (const auto& t : simplified->triangles_)
-            result.faces.push_back({(uint32_t)t.x(), (uint32_t)t.y(), (uint32_t)t.z()});
-
+        result.vertices = source.vertices;
+        for (size_t i = 0; i + 2 < result_count; i += 3)
+            result.faces.push_back({dest[i], dest[i+1], dest[i+2]});
         result.recompute_bounds();
         return result;
     }
 };
 
 }  // namespace simforge::adapters
-#endif
 ```
 
 The pattern is always: convert in → call library → convert out. The adapter owns the translation; the stage never sees library-specific types.

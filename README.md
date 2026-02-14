@@ -39,8 +39,8 @@ See [DESIGN.md](DESIGN.md) for the full design document, [ROADMAP.md](ROADMAP.md
 ┌──────────┐   ┌────────────┐   ┌─────────┐   ┌──────────┐   ┌───────────┐   ┌────────┐
 │ Ingest   │──▶│ Collision  │──▶│ Physics │──▶│ Optimize │──▶│ Validate  │──▶│ Export │
 │          │   │            │   │         │   │          │   │           │   │        │
-│ Assimp   │   │ CoACD      │   │ Density │   │ LOD gen  │   │ Watertight│   │ USDA   │
-│ builtin  │   │ V-HACD     │   │ Explicit│   │ Decimate │   │ Physics   │   │ URDF   │
+│ Assimp   │   │ CoACD      │   │ Density │   │meshopt   │   │ Watertight│   │ USDA   │
+│ builtin  │   │ Primitive  │   │ Explicit│   │ Decimate │   │ Physics   │   │ URDF   │
 │ OBJ/STL  │   │ ConvexHull │   │ Lookup  │   │          │   │ Collision │   │ MJCF   │
 │          │   │            │   │         │   │          │   │           │   │ GLTF   │
 └──────────┘   └────────────┘   └─────────┘   └──────────┘   └───────────┘   └────────┘
@@ -81,12 +81,12 @@ simforge/
 ├── .github/workflows/         # CI/CD
 │   └── ci.yml                 #   Build matrix + gate job
 ├── include/simforge/          # Public headers
-│   ├── adapters/              #   Adapter interfaces, mesh writer, exporter headers
+│   ├── adapters/              #   Adapter interfaces, mesh writer, exporter headers, primitive fitter
 │   ├── core/                  #   Core types (Asset, Mesh, Vec3, Physics)
 │   ├── pipeline/              #   Pipeline engine, stage interface, builtins
 │   └── validators/            #   Validator interface
 ├── src/                       # Implementation
-│   ├── adapters/              #   Builtin importers + USDA/URDF/MJCF/GLTF exporters
+│   ├── adapters/              #   Importers, exporters, meshopt LOD, primitive fitter, CoACD
 │   ├── cli/                   #   CLI entry point (main.cpp)
 │   ├── core/                  #   Core type implementations
 │   ├── pipeline/              #   Pipeline and stage implementations
@@ -98,6 +98,7 @@ simforge/
 │   ├── test_pipeline.cpp      #   Pipeline config + stage registry tests
 │   ├── test_adapters.cpp      #   OBJ/STL importer round-trip tests
 │   ├── test_exporters.cpp     #   USDA/URDF/MJCF/GLTF exporter unit tests
+│   ├── test_collision_lod.cpp #   Collision + LOD adapter tests
 │   └── test_integration.cpp   #   End-to-end pipeline tests
 ├── samples/                   # Sample assets (OBJ, STL, GLTF, URDF, MJCF)
 ├── CMakeLists.txt             # Build configuration
@@ -153,6 +154,8 @@ All dependencies are fetched automatically via CMake `FetchContent`:
 - [Assimp](https://github.com/assimp/assimp) — Mesh I/O (optional, enabled by default)
 - [tinyxml2](https://github.com/leethomason/tinyxml2) — URDF/MJCF XML generation
 - [tinygltf](https://github.com/syoyo/tinygltf) — GLTF binary export
+- [meshoptimizer](https://github.com/zeux/meshoptimizer) — LOD mesh decimation
+- [CoACD](https://github.com/SarahWeiii/CoACD) — Convex decomposition (optional, off by default)
 
 ## License
 
