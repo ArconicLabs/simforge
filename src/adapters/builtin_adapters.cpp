@@ -252,6 +252,10 @@ std::vector<Mesh> OBJImporter::import(const fs::path& path) {
     return {mesh};
 }
 
+// ─── Adapter forward declarations ─────────────────────────────────
+
+std::unique_ptr<LODGenerator> make_meshoptimizer_decimator();
+
 // ─── Adapter Registration ──────────────────────────────────────────
 
 /// Called once at startup to register all built-in adapters.
@@ -281,6 +285,9 @@ void register_builtin_adapters() {
     mgr.register_exporter(make_gltf_exporter());
 
     spdlog::info("Registered {} exporter(s)", mgr.list_exporters().size());
+
+    // LOD generator (always available, zero deps)
+    mgr.register_lod_generator(make_meshoptimizer_decimator());
 }
 
 }  // namespace simforge::adapters

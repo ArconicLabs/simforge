@@ -12,6 +12,7 @@ add_library(simforge_core STATIC
     adapters/urdf_exporter.cpp
     adapters/mjcf_exporter.cpp
     adapters/gltf_exporter.cpp
+    adapters/meshopt_adapter.cpp
     validators/validator.cpp
 )
 
@@ -24,6 +25,7 @@ target_link_libraries(simforge_core PUBLIC
     spdlog::spdlog
     nlohmann_json::nlohmann_json
     tinyxml2::tinyxml2
+    meshoptimizer
 )
 
 target_include_directories(simforge_core PRIVATE
