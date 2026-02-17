@@ -15,12 +15,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This pr
 - **Dependencies**: meshoptimizer v0.22 via FetchContent (always-on), CoACD v1.0.1 via find_package/FetchContent (optional)
 - **Collision + LOD tests**: 8 unit tests covering meshoptimizer decimation, primitive fitting (OBB, sphere, capsule), and primitive generator selection
 - **Integration tests**: LOD pipeline test (optimize stage with meshoptimizer) and primitive collision pipeline test
-
-### Changed
-
-- **CollisionStage**: Default generator now auto-routes based on collision method — `primitive` method uses "primitive" generator, `convex_decomposition` uses "coacd" generator
-- **OptimizeStage**: LOD generation now uses meshoptimizer instead of copying the original mesh when a generator is available
-
 - **USDA exporter**: ASCII USD output with visual meshes, collision scope, and UsdPhysics schema attributes — no OpenUSD SDK required
 - **URDF exporter**: Single-link `<robot>` XML with external OBJ meshes in `meshes/` and `<inertial>` blocks via tinyxml2
 - **MJCF exporter**: MuJoCo `<mujoco>` XML with STL mesh assets in `assets/`, physics material defaults, and inertial properties via tinyxml2
@@ -30,6 +24,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This pr
 - **Dependencies**: tinyxml2 (URDF/MJCF XML generation) and tinygltf (GLTF binary export) via FetchContent
 - **Exporter tests**: 15 unit tests covering output structure, external mesh files, physics attributes, and round-trip parsing for all 4 formats
 - **Integration test**: Full pipeline test exporting to all 4 formats simultaneously with catalog verification
+- **KinematicTree type system**: Link, Joint, Actuator, Sensor, and KinematicTree types in `simforge/core/articulation.h` with JSON serialization, index-based lookup, and DOF/tree-structure helpers
+- **ArticulatedImporter interface**: New adapter interface for importers that produce a KinematicTree, with factory registration in AdapterManager
+- **ArticulationStage**: New pipeline stage for sidecar YAML loading and three-source merge (source file > sidecar > YAML config), placed between ingest and collision
+- **URDF importer**: Parses URDF XML — links, joints, transmissions, Gazebo sensor plugins — into KinematicTree via tinyxml2
+- **MJCF importer**: Parses MuJoCo XML — nested body hierarchy, actuators, sensors — into KinematicTree via tinyxml2
+- **Articulation validators**: KinematicTreeValidator (acyclic, one root, no orphans), ActuatorValidator, SensorValidator, JointLimitsValidator
+- **Articulation tests**: 33 tests across 3 files — type unit tests, validator tests, URDF/MJCF importer integration tests with cross-format consistency check
+- **Test fixtures**: `simple_arm.urdf`, `simple_arm.xml` (MJCF), `mug.simforge.yaml` (sidecar metadata)
+
+### Changed
+
+- **CollisionStage**: Default generator now auto-routes based on collision method — `primitive` method uses "primitive" generator, `convex_decomposition` uses "coacd" generator
+- **OptimizeStage**: LOD generation now uses meshoptimizer instead of copying the original mesh when a generator is available
+- **CollisionStage / PhysicsStage**: Process per-link when asset is articulated, single-body path unchanged
+- **URDF exporter**: Emits multi-link `<robot>` with `<joint>`, `<transmission>`, and Gazebo `<sensor>` plugins for articulated assets; single-body fallback preserved
+- **MJCF exporter**: Emits nested `<body>` tree with `<joint>`, `<actuator>`, and `<sensor>` sections for articulated assets; single-body fallback preserved
+- **USDA exporter**: Emits `PhysicsArticulationRootAPI` with per-link Xforms and `PhysicsJoint` prims for articulated assets; also ASCII USD output with visual meshes, collision scope, and UsdPhysics schema attributes — no OpenUSD SDK required
+- **GLTF exporter**: Warns when articulation data is dropped (GLTF has no native articulation support)
 
 ## [0.1.0] — 2026-02-13
 
