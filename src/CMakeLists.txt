@@ -2,6 +2,7 @@
 
 add_library(simforge_core STATIC
     core/types.cpp
+    core/articulation.cpp
     pipeline/stage.cpp
     pipeline/pipeline.cpp
     pipeline/builtin_stages.cpp
