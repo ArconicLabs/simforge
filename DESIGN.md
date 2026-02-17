@@ -42,21 +42,23 @@ simforge is a declarative pipeline harness that takes `raw assets in, sim-ready 
         │           │           │           │           │           │
    ┌────▼────────────▼───────────▼───────────▼───────────▼───────────▼────┐
    │                        Adapter Manager                               │
-   │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐            │
-   │  │Importers │  │Exporters │  │Collision │  │   LOD    │            │
-   │  │          │  │          │  │Generators│  │Generators│            │
-   │  │• Assimp  │  │• USDA    │  │• CoACD   │  │• meshopt │            │
-   │  │• OBJ     │  │• URDF    │  │• Primitive│  │          │            │
-   │  │• STL     │  │• MJCF    │  │• Builtin │  │          │            │
-   │  │• URDF    │  │• GLTF    │  │          │  │          │            │
-   │  │• MJCF    │  │• OBJ     │  │          │  │          │            │
-   │  └──────────┘  └──────────┘  └──────────┘  └──────────┘            │
+   │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐│
+   │  │ Mesh     │  │Articulated│ │Exporters │  │Collision │  │   LOD    ││
+   │  │Importers │  │Importers │  │          │  │Generators│  │Generators││
+   │  │          │  │          │  │          │  │          │  │          ││
+   │  │• Assimp  │  │• URDF    │  │• USDA    │  │• CoACD   │  │• meshopt ││
+   │  │• OBJ     │  │• MJCF    │  │• URDF    │  │• Primitive│  │          ││
+   │  │• STL     │  │          │  │• MJCF    │  │• Builtin │  │          ││
+   │  │          │  │          │  │• GLTF    │  │          │  │          ││
+   │  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘│
    └──────────────────────────────────────────────────────────────────────┘
                                 │
                     ┌───────────▼───────────┐
                     │     Core Types        │
                     │  Asset, Mesh, Vec3,   │
-                    │  Physics, Collision   │
+                    │  Physics, Collision,  │
+                    │  KinematicTree,       │
+                    │  Actuator, Sensor     │
                     └───────────────────────┘
 ```
 
@@ -73,16 +75,21 @@ The `Asset` struct is the single unit of work that flows through the pipeline. E
 
 ```
 Asset
-├── identity:    id, name, source_path, source_format
-├── geometry:    meshes[]           ← populated by Ingest
-│                lods[]             ← populated by Optimize
-├── collision:   CollisionMesh?     ← populated by Collision
-├── physics:     PhysicsProperties? ← populated by Physics
-├── appearance:  materials[]        ← populated by Ingest (when available)
-├── status:      AssetStatus enum   ← advanced by each stage
-├── validations: ValidationResult[] ← populated by Validate
-├── metadata:    json               ← extensible key-value bag
-└── output_path: fs::path           ← set by Export
+├── identity:       id, name, source_path, source_format
+├── geometry:       meshes[]                ← populated by Ingest
+│                   lods[]                  ← populated by Optimize
+├── collision:      CollisionMesh?          ← populated by Collision
+├── physics:        PhysicsProperties?      ← populated by Physics
+├── appearance:     materials[]             ← populated by Ingest (when available)
+├── articulation:   KinematicTree?          ← populated by Ingest (URDF/MJCF) or Articulation stage
+│                   ├── links[]             ← rigid bodies with visual/collision/physics
+│                   ├── joints[]            ← connections with type, limits, dynamics
+│                   ├── actuators[]         ← motors with control mode, gear ratio, limits
+│                   └── sensors[]           ← typed sensors with properties bag
+├── status:         AssetStatus enum        ← advanced by each stage
+├── validations:    ValidationResult[]      ← populated by Validate
+├── metadata:       json                    ← extensible key-value bag
+└── output_path:    fs::path                ← set by Export
 ```
 
 ### Status progression
@@ -90,9 +97,9 @@ Asset
 Each stage advances the asset through a defined status sequence. Stages check `should_run()` against the current status to ensure correct ordering and idempotency:
 
 ```
-Raw → Ingested → CollisionGenerated → PhysicsAnnotated → Optimized → Validated → Ready
-                                                                                   │
-                                                                        (any stage can →) Failed
+Raw → Ingested → Articulated → CollisionGenerated → PhysicsAnnotated → Optimized → Validated → Ready
+                  (optional)                                                                      │
+                                                                                   (any stage can →) Failed
 ```
 
 ### Why not an ECS / component model?
@@ -112,7 +119,7 @@ The adapter layer is where simforge's value as a harness lives. Each adapter is 
 
 ### 5.1 Adapter Interfaces
 
-Four interfaces cover all external tool interactions:
+Five interfaces cover all external tool interactions:
 
 ```cpp
 // Import: file on disk → simforge Mesh objects
@@ -120,6 +127,13 @@ class MeshImporter {
     virtual std::string name() const = 0;
     virtual std::vector<SourceFormat> supported_formats() const = 0;
     virtual std::vector<Mesh> import(const fs::path& path) = 0;
+};
+
+// Import articulated: file on disk → KinematicTree + meshes
+class ArticulatedImporter {
+    virtual std::string name() const = 0;
+    virtual std::vector<SourceFormat> supported_formats() const = 0;
+    virtual ArticulatedImportResult import_articulated(const fs::path& path) = 0;
 };
 
 // Export: simforge Asset → file on disk in target format
@@ -157,6 +171,9 @@ void register_builtin_adapters() {
 #ifdef SIMFORGE_HAS_COACD
     mgr.register_collision_generator(std::make_unique<CoACDGenerator>());
 #endif
+    // Articulated importers (URDF, MJCF)
+    mgr.register_articulated_importer(make_urdf_importer());
+    mgr.register_articulated_importer(make_mjcf_importer());
     // ...
 }
 ```
@@ -246,11 +263,12 @@ The `Result<Asset>` return type forces explicit error handling. A stage either r
 
 | Stage | Input Status | Output Status | What It Does |
 |---|---|---|---|
-| `ingest` | Raw | Ingested | Reads source file via adapter, populates `meshes[]` |
-| `collision` | Ingested | CollisionGenerated | Generates collision hulls from visual geometry |
-| `physics` | CollisionGenerated | PhysicsAnnotated | Estimates mass, inertia, friction from geometry + material |
+| `ingest` | Raw | Ingested | Reads source file via adapter, populates `meshes[]` (and `kinematic_tree` for URDF/MJCF) |
+| `articulation` | Ingested | Articulated | Loads sidecar metadata, applies YAML overlay, merges kinematic tree data (optional) |
+| `collision` | Ingested/Articulated | CollisionGenerated | Generates collision hulls — per-link for articulated, per-asset for single-body |
+| `physics` | CollisionGenerated | PhysicsAnnotated | Estimates mass/inertia — per-link for articulated, per-asset for single-body |
 | `optimize` | PhysicsAnnotated | Optimized | Generates LOD variants via mesh decimation |
-| `validate` | (any) | Validated | Runs all configured validators, populates `validations[]` |
+| `validate` | (any) | Validated | Runs all configured validators (including articulation validators), populates `validations[]` |
 | `export` | Validated | Ready | Writes to one or more target formats + catalog JSON |
 
 ### 6.3 Stage Registration
@@ -338,6 +356,10 @@ Validators are separate from stages. The `ValidateStage` is a meta-stage that ru
 | `collision_correctness` | Hull count ≤ max; collision/visual volume ratio within tolerance |
 | `mesh_integrity` | No degenerate triangles (duplicate indices, out-of-bounds); no empty meshes |
 | `scale_sanity` | Bounding box within expected real-world dimensions (catches mm-vs-m unit errors) |
+| `kinematic_tree` | Tree is acyclic, all references resolve, exactly one root, no duplicate link names |
+| `actuator` | Actuators reference existing non-fixed joints, gear ratio positive |
+| `sensor` | Sensors reference existing links, type non-empty, camera sensors have width/height |
+| `joint_limits` | Revolute/prismatic joints have limits, lower < upper |
 
 ### 7.2 Validation Result
 
@@ -827,7 +849,7 @@ Downstream tools can parse these catalogs to:
 
 **Asset identity.** Currently `id` is a sequential counter. Should it be a content hash (SHA-256 of source file)? A UUID? A user-provided string? Content hashing enables deduplication and cache invalidation but adds I/O overhead.
 
-**Kinematic trees.** The current `Asset` struct represents individual objects, not articulated robots with joints. URDF and MJCF import/export needs a joint tree representation. Options: (a) store in `metadata` as JSON, (b) add a `JointTree` struct to `Asset`, (c) treat each link as a separate Asset with parent references. Leaning toward (b) for type safety.
+**Kinematic trees.** *(Resolved)* The `Asset` struct now contains an optional `std::unique_ptr<KinematicTree> kinematic_tree` field. `KinematicTree` holds links, joints, actuators, and sensors with name-based indexing. Option (b) was chosen for type safety. URDF and MJCF importers parse articulated files directly into this representation, and the `ArticulationStage` merges data from source files, sidecar metadata, and YAML config.
 
 **Material library.** The physics stage uses a single `default_material` from config. Real pipelines need a material lookup table (wood, steel, plastic, rubber, ceramic) that maps to density + friction values. Should this be a separate YAML file, embedded in the main config, or an adapter that reads from a database?
 
