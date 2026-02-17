@@ -201,6 +201,9 @@ public:
         model.defaultScene = 0;
 
         // Warnings for unsupported features
+        if (asset.is_articulated()) {
+            spdlog::warn("GLTF exporter: articulation data dropped (GLTF has no articulation support)");
+        }
         if (asset.physics) {
             spdlog::warn("GLTF exporter: physics data dropped (GLTF has no physics support)");
         }
