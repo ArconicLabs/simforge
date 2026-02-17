@@ -13,6 +13,8 @@ add_executable(simforge_tests
     test_exporters.cpp
     test_collision_lod.cpp
     test_integration.cpp
+    test_articulation.cpp
+    test_articulation_validators.cpp
 )
 
 target_link_libraries(simforge_tests PRIVATE
