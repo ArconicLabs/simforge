@@ -111,6 +111,36 @@ PhysicsProperties PhysicsProperties::estimate_from_mesh(
 
 // ─── Asset ─────────────────────────────────────────────────────────
 
+Asset::Asset(const Asset& other)
+    : id(other.id), name(other.name), source_path(other.source_path),
+      source_format(other.source_format), meshes(other.meshes), lods(other.lods),
+      collision(other.collision), physics(other.physics), materials(other.materials),
+      status(other.status), validations(other.validations), metadata(other.metadata),
+      kinematic_tree(other.kinematic_tree
+          ? std::make_unique<KinematicTree>(*other.kinematic_tree) : nullptr),
+      output_path(other.output_path) {}
+
+Asset& Asset::operator=(const Asset& other) {
+    if (this != &other) {
+        id             = other.id;
+        name           = other.name;
+        source_path    = other.source_path;
+        source_format  = other.source_format;
+        meshes         = other.meshes;
+        lods           = other.lods;
+        collision      = other.collision;
+        physics        = other.physics;
+        materials      = other.materials;
+        status         = other.status;
+        validations    = other.validations;
+        metadata       = other.metadata;
+        kinematic_tree = other.kinematic_tree
+            ? std::make_unique<KinematicTree>(*other.kinematic_tree) : nullptr;
+        output_path    = other.output_path;
+    }
+    return *this;
+}
+
 bool Asset::all_validations_passed() const {
     return std::all_of(validations.begin(), validations.end(),
         [](const auto& v) { return v.passed; });

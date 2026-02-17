@@ -12,6 +12,11 @@ option(SIMFORGE_USE_ASSIMP     "Enable Assimp adapter"  ON)
 option(SIMFORGE_USE_OPENUSD    "Enable OpenUSD adapter"  OFF)
 option(SIMFORGE_USE_COACD      "Enable CoACD adapter"   OFF)
 
+# Static libs must be PIC to link into the Python shared module.
+if(SIMFORGE_BUILD_PYTHON)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
+
 # ─── Dependencies ───────────────────────────────────────────────────
 include(FetchContent)
 
@@ -108,8 +113,23 @@ if(SIMFORGE_USE_COACD)
     add_compile_definitions(SIMFORGE_HAS_COACD)
 endif()
 
+# Optional: pybind11 for Python bindings
+if(SIMFORGE_BUILD_PYTHON)
+    FetchContent_Declare(
+        pybind11
+        GIT_REPOSITORY https://github.com/pybind/pybind11.git
+        GIT_TAG        v2.13.6
+    )
+    FetchContent_MakeAvailable(pybind11)
+endif()
+
 # ─── Core Library ───────────────────────────────────────────────────
 add_subdirectory(src)
+
+# ─── Python Bindings ────────────────────────────────────────────────
+if(SIMFORGE_BUILD_PYTHON)
+    add_subdirectory(python)
+endif()
 
 # ─── Tests ──────────────────────────────────────────────────────────
 if(SIMFORGE_BUILD_TESTS)

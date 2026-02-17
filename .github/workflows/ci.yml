@@ -41,9 +41,39 @@ jobs:
       - name: Test
         run: cd build && ctest --output-on-failure
 
+  python-bindings:
+    runs-on: ubuntu-latest
+    name: Python Bindings
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build
+          pip install pytest
+
+      - name: Configure
+        run: >
+          cmake -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DSIMFORGE_BUILD_PYTHON=ON
+          -DSIMFORGE_BUILD_TESTS=OFF
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: Test
+        run: PYTHONPATH=build/python pytest tests/test_bindings.py -v
+
   gate:
     name: Gate
-    needs: build-and-test
+    needs: [build-and-test, python-bindings]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -53,4 +83,8 @@ jobs:
             echo "build-and-test failed or was cancelled"
             exit 1
           fi
-          echo "All matrix builds passed"
+          if [ "${{ needs.python-bindings.result }}" != "success" ]; then
+            echo "python-bindings failed or was cancelled"
+            exit 1
+          fi
+          echo "All jobs passed"
