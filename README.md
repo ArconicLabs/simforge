@@ -36,14 +36,15 @@ SimForge has four layers, each with a single responsibility:
 See [DESIGN.md](DESIGN.md) for the full design document, [ROADMAP.md](ROADMAP.md) for planned work, and [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ```
-┌──────────┐   ┌────────────┐   ┌─────────┐   ┌──────────┐   ┌───────────┐   ┌────────┐
-│ Ingest   │──▶│ Collision  │──▶│ Physics │──▶│ Optimize │──▶│ Validate  │──▶│ Export │
-│          │   │            │   │         │   │          │   │           │   │        │
-│ Assimp   │   │ CoACD      │   │ Density │   │meshopt   │   │ Watertight│   │ USDA   │
-│ builtin  │   │ Primitive  │   │ Explicit│   │ Decimate │   │ Physics   │   │ URDF   │
-│ OBJ/STL  │   │ ConvexHull │   │ Lookup  │   │          │   │ Collision │   │ MJCF   │
-│          │   │            │   │         │   │          │   │           │   │ GLTF   │
-└──────────┘   └────────────┘   └─────────┘   └──────────┘   └───────────┘   └────────┘
+┌──────────┐  ┌─────────────┐  ┌──────────┐  ┌─────────┐  ┌────────┐  ┌─────────┐  ┌────────┐
+│ Ingest   │─▶│Articulation │─▶│Collision │─▶│ Physics │─▶│Optimize│─▶│Validate │─▶│ Export │
+│          │  │  (optional) │  │          │  │         │  │        │  │         │  │        │
+│ Assimp   │  │ URDF/MJCF   │  │ CoACD    │  │ Density │  │meshopt │  │Watertight│  │ USDA   │
+│ builtin  │  │ YAML/sidecar│  │ Primitive│  │ Explicit│  │Decimate│  │ Physics │  │ URDF   │
+│ OBJ/STL  │  │ merge       │  │ConvexHull│  │ Lookup  │  │        │  │Collision│  │ MJCF   │
+│ URDF/MJCF│  │             │  │          │  │         │  │        │  │Actuator │  │ GLTF   │
+│          │  │             │  │          │  │         │  │        │  │ Sensor  │  │        │
+└──────────┘  └─────────────┘  └──────────┘  └─────────┘  └────────┘  └─────────┘  └────────┘
 ```
 
 ## CLI Reference
@@ -67,11 +68,12 @@ A config file has two top-level keys:
 
 - **`pipeline`** — Source/output directories and target export formats.
 - **`stages`** — Per-stage settings:
-  - `ingest` — Accepted input formats.
+  - `ingest` — Accepted input formats (OBJ, STL, FBX, GLTF, URDF, MJCF, ...).
+  - `articulation` — Kinematic tree configuration: links, joints, actuators, sensors. Merges data from source files, sidecar metadata (`.simforge.yaml`), and inline YAML config.
   - `collision` — Decomposition method (`coacd`, `convex_hull`, `triangle_mesh`, `primitive`), concavity threshold, max hulls.
   - `physics` — Mass estimation strategy, density, friction, restitution.
   - `optimize` — LOD levels and triangle budgets.
-  - `validate` — Which checks to run (watertight, physics plausibility, collision correctness, mesh integrity, scale sanity).
+  - `validate` — Which checks to run (watertight, physics plausibility, collision correctness, mesh integrity, scale sanity, kinematic tree, actuators, sensors, joint limits).
   - `export` — Output formats and catalog generation.
 
 ## Structure
@@ -81,17 +83,18 @@ simforge/
 ├── .github/workflows/         # CI/CD
 │   └── ci.yml                 #   Build matrix + gate job
 ├── include/simforge/          # Public headers
-│   ├── adapters/              #   Adapter interfaces, mesh writer, exporter headers, primitive fitter
-│   ├── core/                  #   Core types (Asset, Mesh, Vec3, Physics)
-│   ├── pipeline/              #   Pipeline engine, stage interface, builtins
-│   └── validators/            #   Validator interface
+│   ├── adapters/              #   Adapter interfaces, mesh writer, exporter headers
+│   ├── core/                  #   Core types (Asset, Mesh, KinematicTree, Actuator, Sensor)
+│   ├── pipeline/              #   Pipeline engine, stage interface, builtins, articulation
+│   └── validators/            #   Validator + articulation validator interfaces
 ├── src/                       # Implementation
-│   ├── adapters/              #   Importers, exporters, meshopt LOD, primitive fitter, CoACD
+│   ├── adapters/              #   Importers (OBJ/STL/URDF/MJCF), exporters, meshopt, CoACD
 │   ├── cli/                   #   CLI entry point (main.cpp)
-│   ├── core/                  #   Core type implementations
-│   ├── pipeline/              #   Pipeline and stage implementations
-│   └── validators/            #   Validator implementations
+│   ├── core/                  #   Core type + articulation implementations
+│   ├── pipeline/              #   Pipeline, stage, and articulation stage implementations
+│   └── validators/            #   Validator + articulation validator implementations
 ├── tests/                     # Test suite
+│   ├── fixtures/              #   Test fixture files (URDF, MJCF, sidecar YAML)
 │   ├── test_helpers.h         #   Programmatic mesh builders + file writers
 │   ├── test_types.cpp         #   Core type tests
 │   ├── test_validators.cpp    #   Validator tests
@@ -99,7 +102,10 @@ simforge/
 │   ├── test_adapters.cpp      #   OBJ/STL importer round-trip tests
 │   ├── test_exporters.cpp     #   USDA/URDF/MJCF/GLTF exporter unit tests
 │   ├── test_collision_lod.cpp #   Collision + LOD adapter tests
-│   └── test_integration.cpp   #   End-to-end pipeline tests
+│   ├── test_integration.cpp   #   End-to-end pipeline tests
+│   ├── test_articulation.cpp          # Articulation type + KinematicTree tests
+│   ├── test_articulation_validators.cpp # Articulation validator tests
+│   └── test_articulated_importers.cpp   # URDF/MJCF importer integration tests
 ├── samples/                   # Sample assets (OBJ, STL, GLTF, URDF, MJCF)
 ├── CMakeLists.txt             # Build configuration
 ├── CHANGELOG.md               # Release history
