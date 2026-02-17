@@ -101,7 +101,55 @@ You can also override config paths from the command line:
 ./build/src/simforge process -c simforge.yaml -s ./my_assets/ -o ./output/
 ```
 
-## 5. Inspect individual assets
+## 5. Process articulated assets
+
+SimForge can import URDF and MJCF robot descriptions, preserving joint hierarchies, actuators, and sensors through the full pipeline.
+
+Point your config at a directory containing `.urdf` or `.xml` (MJCF) files:
+
+```yaml
+pipeline:
+  source: ./robots/
+  output: ./sim_ready/
+  target_formats: [urdf, mjcf, usd]
+
+stages:
+  ingest:
+    formats: [urdf, mjcf]
+  articulation:
+    sidecar: true       # load .simforge.yaml sidecar files if present
+  collision:
+    method: primitive
+  physics:
+    mass_estimation: geometry
+    density: 1000.0
+  validate:
+    watertight: true
+    physics_plausibility: true
+  export:
+    catalog: true
+```
+
+The `articulation` stage sits between `ingest` and `collision`. It merges articulation data from three sources (priority: YAML config > sidecar file > source file) and builds the kinematic tree index.
+
+You can also add sensors or actuators to single-body assets (like an OBJ mug) via a sidecar file. Place a file named `<asset>.simforge.yaml` next to the source:
+
+```yaml
+# mug.simforge.yaml
+links:
+  - name: mug_body
+sensors:
+  - name: temperature
+    type: temperature
+    link: mug_body
+    properties:
+      range: [0.0, 200.0]
+      units: celsius
+```
+
+The articulation stage picks this up automatically and wraps the single-body mesh in a minimal one-link KinematicTree with the sensor attached.
+
+## 6. Inspect individual assets
 
 Check geometry details of any asset file without running the full pipeline:
 
@@ -121,7 +169,7 @@ Check geometry details of any asset file without running the full pipeline:
 
 This is useful for sanity-checking assets before feeding them into the pipeline.
 
-## 6. Validate processed assets
+## 7. Validate processed assets
 
 After processing, run standalone validation on the output directory:
 
@@ -131,7 +179,7 @@ After processing, run standalone validation on the output directory:
 
 This runs the same checks as the `validate` pipeline stage (watertight, physics plausibility, collision correctness, mesh integrity, scale sanity) but as a standalone pass.
 
-## 7. Explore available stages and adapters
+## 8. Explore available stages and adapters
 
 ```bash
 ./build/src/simforge list-stages
@@ -139,6 +187,7 @@ This runs the same checks as the `validate` pipeline stage (watertight, physics 
 ```
 [info] Available pipeline stages:
 [info]   ingest
+[info]   articulation
 [info]   collision
 [info]   physics
 [info]   optimize
