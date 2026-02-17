@@ -256,6 +256,8 @@ std::vector<Mesh> OBJImporter::import(const fs::path& path) {
 
 std::unique_ptr<LODGenerator> make_meshoptimizer_decimator();
 std::unique_ptr<CollisionGenerator> make_primitive_fitter();
+std::unique_ptr<ArticulatedImporter> make_urdf_importer();
+std::unique_ptr<ArticulatedImporter> make_mjcf_importer();
 
 #ifdef SIMFORGE_HAS_COACD
 std::unique_ptr<CollisionGenerator> make_coacd_generator();
@@ -302,6 +304,10 @@ void register_builtin_adapters() {
 #endif
 
     spdlog::info("Registered collision + LOD adapters");
+
+    // Articulated importers
+    mgr.register_articulated_importer(make_urdf_importer());
+    mgr.register_articulated_importer(make_mjcf_importer());
 }
 
 }  // namespace simforge::adapters

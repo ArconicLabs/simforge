@@ -10,6 +10,8 @@ add_library(simforge_core STATIC
     validators/articulation_validators.cpp
     adapters/adapter.cpp
     adapters/builtin_adapters.cpp
+    adapters/urdf_importer.cpp
+    adapters/mjcf_importer.cpp
     adapters/mesh_writer.cpp
     adapters/usda_exporter.cpp
     adapters/urdf_exporter.cpp
