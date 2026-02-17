@@ -1,12 +1,12 @@
 # SimForge — Roadmap
 
-> Last updated: 2026-02-13
+> Last updated: 2026-02-17
 
 SimForge is an open-source pipeline harness that takes raw 3D assets and produces validated, simulation-ready output. This roadmap tracks what's been shipped, what's in progress, and what's planned. For architecture and design rationale, see [DESIGN.md](DESIGN.md).
 
 ## Current Status
 
-**Phase 3 (Collision + LOD Adapters) is complete.** SimForge can ingest raw 3D assets, process them through the full pipeline with real collision decomposition and LOD generation, and export to USDA, URDF, MJCF, and GLTF formats. Articulated asset support and Python bindings are the next priority.
+**Phase 4 (Articulated Asset Support) C++ work is complete.** SimForge supports articulated bodies via a KinematicTree type system, URDF/MJCF importers, per-link collision and physics processing, articulation validators, and articulated export across all four formats. Python bindings and parallel asset processing are the remaining Phase 4 items.
 
 ---
 
@@ -37,8 +37,8 @@ Replace placeholder fallbacks with real implementations.
 
 | Task | Description | Status |
 |------|-------------|--------|
-| URDF/MJCF importers | Parse description XML, resolve mesh references, preserve joint hierarchies. | Planned |
-| Joint tree type | Add `JointTree` struct to `Asset` for articulated body support across import/export. | Planned |
+| URDF/MJCF importers | Parse description XML, resolve mesh references, preserve joint hierarchies. | Done |
+| KinematicTree type system | Link, Joint, Actuator, Sensor types with `KinematicTree` on Asset for articulated body support. | Done |
 | Python bindings | pybind11 wrappers for `Pipeline`, `Asset`, and programmatic stage configuration. | Planned |
 | Parallel asset processing | Thread pool for per-asset parallelism. Stages must be stateless (they already are). | Planned |
 
@@ -73,7 +73,7 @@ Decisions from [DESIGN.md §14](DESIGN.md#14-open-questions) that have been sett
 
 | Question | Decision |
 |----------|----------|
-| Kinematic trees | Add a `JointTree` struct to `Asset` (option b) for type safety. Phase 4. |
+| Kinematic trees | Add a `KinematicTree` struct to `Asset` (option b) for type safety. Phase 4 — Done. |
 | Material library | Separate YAML file referenced from main config. Phase 5. |
 | Incremental processing | Hash-based (SHA-256 of source file). Phase 5. |
 | Plugin loading | Not planned. Adapters are compiled in via CMake flags. |
