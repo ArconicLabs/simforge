@@ -1,11 +1,14 @@
+// About: Core data types for SimForge — geometry, physics, materials,
+// articulation (links, joints, actuators, sensors), and the Asset struct
+// that flows through the pipeline.
 #pragma once
 
 #include <cstdint>
 #include <filesystem>
+#include <memory>
 #include <optional>
 #include <string>
 #include <unordered_map>
-#include <variant>
 #include <vector>
 
 #include <nlohmann/json.hpp>
@@ -153,11 +156,134 @@ enum class SourceFormat {
 [[nodiscard]] SourceFormat parse_format(const std::string& name);
 [[nodiscard]] std::string  format_to_string(SourceFormat fmt);
 
+// ─── Articulation ──────────────────────────────────────────────────
+
+struct Quaternion {
+    float w{1.0f}, x{0.0f}, y{0.0f}, z{0.0f};
+};
+
+struct Pose {
+    Vec3       position{};
+    Quaternion orientation{};
+};
+
+/// A rigid body within an articulated asset. Structurally parallel
+/// to the single-body Asset fields but scoped to one link in the tree.
+struct Link {
+    std::string                      name;
+    std::vector<Mesh>                visual_meshes;
+    std::optional<CollisionMesh>     collision;
+    std::optional<PhysicsProperties> physics;
+    std::vector<PBRMaterial>         materials;
+    Pose                             origin{};
+    nlohmann::json                   metadata;
+};
+
+enum class JointType {
+    Fixed,
+    Revolute,
+    Continuous,
+    Prismatic,
+    Floating,
+    Planar,
+    Spherical,
+};
+
+struct JointLimits {
+    float lower{0.0f};
+    float upper{0.0f};
+    float velocity{0.0f};
+    float effort{0.0f};
+};
+
+struct JointDynamics {
+    float damping{0.0f};
+    float friction{0.0f};
+};
+
+struct Joint {
+    std::string                  name;
+    JointType                    type{JointType::Fixed};
+    std::string                  parent_link;
+    std::string                  child_link;
+    Pose                         origin{};
+    Vec3                         axis{0.0f, 0.0f, 1.0f};
+    std::optional<JointLimits>   limits;
+    std::optional<JointDynamics> dynamics;
+    nlohmann::json               metadata;
+};
+
+enum class ControlMode {
+    Position,
+    Velocity,
+    Effort,
+};
+
+/// Core actuator model: joint-level basics. Extensible via the
+/// properties bag for transmission, backlash, friction models.
+struct Actuator {
+    std::string    name;
+    std::string    joint;
+    ControlMode    control_mode{ControlMode::Position};
+    float          gear_ratio{1.0f};
+    float          max_torque{0.0f};
+    float          max_velocity{0.0f};
+    nlohmann::json properties;
+};
+
+/// Generic sensor abstraction. The type field is a free-form string
+/// (e.g., "imu", "camera", "force_torque", "lidar", "contact").
+/// All sensor-specific configuration lives in the properties bag.
+struct Sensor {
+    std::string    name;
+    std::string    type;
+    std::string    link;
+    Pose           origin{};
+    nlohmann::json properties;
+};
+
+/// Complete articulation model. Optional on Asset; when absent, the
+/// asset is a single rigid body using Asset's flat fields.
+struct KinematicTree {
+    std::string           root_link;
+    std::vector<Link>     links;
+    std::vector<Joint>    joints;
+    std::vector<Actuator> actuators;
+    std::vector<Sensor>   sensors;
+
+    [[nodiscard]] const Link*     find_link(const std::string& name) const;
+    [[nodiscard]] const Joint*    find_joint(const std::string& name) const;
+    [[nodiscard]] const Actuator* find_actuator_for_joint(const std::string& joint_name) const;
+    [[nodiscard]] std::vector<const Joint*> child_joints(const std::string& link_name) const;
+
+    /// Total degrees of freedom (non-fixed joints).
+    [[nodiscard]] size_t dof() const;
+
+    /// True if the graph forms a tree (no cycles, single root).
+    [[nodiscard]] bool is_tree() const;
+
+    /// Build internal index maps for O(1) lookup by name.
+    void build_index();
+
+    /// Mutable access for per-link stage processing.
+    [[nodiscard]] Link* find_link_mut(const std::string& name);
+
+private:
+    std::unordered_map<std::string, size_t> link_index_;
+    std::unordered_map<std::string, size_t> joint_index_;
+};
+
+[[nodiscard]] std::string joint_type_to_string(JointType type);
+[[nodiscard]] JointType   parse_joint_type(const std::string& str);
+[[nodiscard]] std::string control_mode_to_string(ControlMode mode);
+[[nodiscard]] ControlMode parse_control_mode(const std::string& str);
+
 // ─── Asset ─────────────────────────────────────────────────────────
 
 enum class AssetStatus {
     Raw,
     Ingested,
+    Articulated,
     CollisionGenerated,
     PhysicsAnnotated,
     Optimized,
@@ -198,9 +324,13 @@ struct Asset {
     std::vector<ValidationResult>   validations;
     nlohmann::json                  metadata;   // extensible key-value store
 
+    // Articulation (null for single-body assets)
+    std::unique_ptr<KinematicTree>  kinematic_tree;
+
     // Output
     fs::path                        output_path;
 
+    [[nodiscard]] bool is_articulated() const { return kinematic_tree != nullptr; }
     [[nodiscard]] bool all_validations_passed() const;
     [[nodiscard]] nlohmann::json to_catalog_entry() const;
 };
@@ -212,5 +342,12 @@ void to_json(nlohmann::json& j, const AABB& b);
 void to_json(nlohmann::json& j, const PhysicsMaterial& m);
 void to_json(nlohmann::json& j, const PhysicsProperties& p);
 void to_json(nlohmann::json& j, const ValidationResult& v);
+void to_json(nlohmann::json& j, const Quaternion& q);
+void to_json(nlohmann::json& j, const Pose& p);
+void to_json(nlohmann::json& j, const Link& l);
+void to_json(nlohmann::json& j, const Joint& jt);
+void to_json(nlohmann::json& j, const Actuator& a);
+void to_json(nlohmann::json& j, const Sensor& s);
+void to_json(nlohmann::json& j, const KinematicTree& kt);
 
 }  // namespace simforge
