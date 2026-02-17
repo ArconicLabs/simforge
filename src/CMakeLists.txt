@@ -6,6 +6,7 @@ add_library(simforge_core STATIC
     pipeline/stage.cpp
     pipeline/pipeline.cpp
     pipeline/builtin_stages.cpp
+    pipeline/articulation_stage.cpp
     adapters/adapter.cpp
     adapters/builtin_adapters.cpp
     adapters/mesh_writer.cpp
