@@ -300,6 +300,12 @@ struct ValidationResult {
 };
 
 struct Asset {
+    Asset() = default;
+    Asset(Asset&&) = default;
+    Asset& operator=(Asset&&) = default;
+    Asset(const Asset& other);
+    Asset& operator=(const Asset& other);
+
     // Identity
     std::string                     id;         // generated hash or user-provided
     std::string                     name;
