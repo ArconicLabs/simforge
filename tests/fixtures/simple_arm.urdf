@@ -1,0 +1,64 @@
+<?xml version="1.0"?>
+<robot name="simple_arm">
+  <link name="base_link">
+    <inertial>
+      <mass value="5.0"/>
+      <origin xyz="0 0 0.05"/>
+      <inertia ixx="0.01" iyy="0.01" izz="0.01" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+
+  <link name="shoulder_link">
+    <inertial>
+      <mass value="2.0"/>
+      <origin xyz="0 0 0.1"/>
+      <inertia ixx="0.005" iyy="0.005" izz="0.002" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+
+  <link name="forearm_link">
+    <inertial>
+      <mass value="1.0"/>
+      <origin xyz="0 0 0.15"/>
+      <inertia ixx="0.002" iyy="0.002" izz="0.001" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+
+  <joint name="shoulder_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="shoulder_link"/>
+    <origin xyz="0 0 0.1" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1.57" upper="1.57" velocity="3.14" effort="50.0"/>
+    <dynamics damping="0.5" friction="0.1"/>
+  </joint>
+
+  <joint name="elbow_joint" type="revolute">
+    <parent link="shoulder_link"/>
+    <child link="forearm_link"/>
+    <origin xyz="0 0 0.2" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-2.0" upper="2.0" velocity="3.14" effort="30.0"/>
+    <dynamics damping="0.3" friction="0.05"/>
+  </joint>
+
+  <transmission name="shoulder_transmission">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="shoulder_joint"/>
+    <actuator name="shoulder_motor"/>
+    <mechanicalReduction>100</mechanicalReduction>
+  </transmission>
+
+  <transmission name="elbow_transmission">
+    <type>transmission_interface/SimpleTransmission</type>
+    <joint name="elbow_joint"/>
+    <actuator name="elbow_motor"/>
+    <mechanicalReduction>80</mechanicalReduction>
+  </transmission>
+
+  <gazebo reference="base_link">
+    <sensor name="base_imu" type="imu">
+      <update_rate>200</update_rate>
+    </sensor>
+  </gazebo>
+</robot>
