@@ -678,16 +678,17 @@ simforge uses a layered dependency model:
 - CLI11 2.4 — argument parsing
 - nlohmann/json 3.11 — metadata serialization
 - Catch2 3.7 — testing
+- meshoptimizer 0.22 — LOD mesh decimation
+- tinyxml2 10.0 — URDF/MJCF XML generation
+- tinygltf 2.9 — GLTF binary export
 
-These are header-only or small libraries that compile in seconds. They are fetched automatically by CMake.
+These are small libraries that compile in seconds. They are fetched automatically by CMake.
 
 **Optional (gated by CMake flags, found via `find_package` or FetchContent):**
 - Assimp 5.4+ — multi-format mesh I/O
 - CoACD — convex decomposition
-- Open3D — mesh processing, decimation
 - OpenUSD — full USD read/write (heavy dependency, ~2GB)
-- tinyxml2 — URDF/MJCF XML writing (lightweight alternative to pulling in full XML parsers)
-- tinygltf — GLTF export
+- pybind11 2.13 — Python bindings
 
 **Never a dependency:**
 - Boost (too heavy, everything we need is in C++20 stdlib)

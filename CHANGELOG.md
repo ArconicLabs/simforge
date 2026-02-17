@@ -32,6 +32,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This pr
 - **Articulation validators**: KinematicTreeValidator (acyclic, one root, no orphans), ActuatorValidator, SensorValidator, JointLimitsValidator
 - **Articulation tests**: 33 tests across 3 files — type unit tests, validator tests, URDF/MJCF importer integration tests with cross-format consistency check
 - **Test fixtures**: `simple_arm.urdf`, `simple_arm.xml` (MJCF), `mug.simforge.yaml` (sidecar metadata)
+- **Python bindings (pybind11)**: Full module exposing core types (`Vec3`, `AABB`, `Triangle`, `Mesh`, `PBRMaterial`, `LODMesh`, `ValidationResult`), physics types (`PhysicsMaterial`, `PhysicsProperties`, `CollisionMesh`), articulation types (`Quaternion`, `Pose`, `Link`, `Joint`, `Actuator`, `Sensor`, `KinematicTree`), `Pipeline`, `PipelineConfig`, `Asset` (with JSON metadata round-trip and `kinematic_tree` property), reports (`AssetReport`, `PipelineReport`, `StageError`), registry introspection (`list_importers()`, `list_exporters()`, `available_stages()`, `available_validators()`), format utilities (`detect_format()`, `parse_format()`, `format_to_string()`), mesh I/O (`write_obj()`, `write_binary_stl()`), and primitive fitting (`fit_obb()`, `fit_sphere()`, `fit_capsule()`)
+- **Python binding tests**: 46-test pytest suite covering module setup, core types, physics, articulation, pipeline config, asset metadata, format utilities, registry introspection, and primitive fitting
+- **CI**: Python bindings build job (Python 3.11, pybind11 v2.13.6) added to GitHub Actions, gated alongside existing C++ matrix
+- **Dependencies**: pybind11 v2.13.6 via FetchContent (optional, gated by `SIMFORGE_BUILD_PYTHON`)
+- **Asset copy constructor**: Deep-copy support for `Asset` (copies `unique_ptr<KinematicTree>`), needed for pybind11 vector compatibility
 
 ### Changed
 

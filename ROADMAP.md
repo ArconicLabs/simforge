@@ -6,7 +6,7 @@ SimForge is an open-source pipeline harness that takes raw 3D assets and produce
 
 ## Current Status
 
-**Phase 4 (Articulated Asset Support) C++ work is complete.** SimForge supports articulated bodies via a KinematicTree type system, URDF/MJCF importers, per-link collision and physics processing, articulation validators, and articulated export across all four formats. Python bindings and parallel asset processing are the remaining Phase 4 items.
+**Phase 4 (Articulated Asset Support + Python) is complete.** SimForge supports articulated bodies via a KinematicTree type system, URDF/MJCF importers, per-link collision and physics processing, articulation validators, and articulated export across all four formats. Python bindings (pybind11) expose the full API for programmatic use. Parallel asset processing is the next planned item.
 
 ---
 
@@ -39,7 +39,7 @@ Replace placeholder fallbacks with real implementations.
 |------|-------------|--------|
 | URDF/MJCF importers | Parse description XML, resolve mesh references, preserve joint hierarchies. | Done |
 | KinematicTree type system | Link, Joint, Actuator, Sensor types with `KinematicTree` on Asset for articulated body support. | Done |
-| Python bindings | pybind11 wrappers for `Pipeline`, `Asset`, and programmatic stage configuration. | Planned |
+| Python bindings | pybind11 wrappers for `Pipeline`, `Asset`, and programmatic stage configuration. | Done |
 | Parallel asset processing | Thread pool for per-asset parallelism. Stages must be stateless (they already are). | Planned |
 
 ## Phase 5 — Pipeline Polish

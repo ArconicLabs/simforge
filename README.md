@@ -24,6 +24,15 @@ cmake --build build
 
 See [QUICKSTART.md](QUICKSTART.md) for a full end-to-end walkthrough.
 
+### Python
+
+```bash
+cmake -B build -G Ninja -DSIMFORGE_BUILD_PYTHON=ON && cmake --build build
+PYTHONPATH=build/python python3 -c "import simforge as sf; print(sf.available_stages())"
+```
+
+See [QUICKSTART.md § 6](QUICKSTART.md#6-use-the-python-bindings) for full Python usage examples.
+
 ## Architecture
 
 SimForge has four layers, each with a single responsibility:
@@ -93,6 +102,7 @@ simforge/
 │   ├── core/                  #   Core type + articulation implementations
 │   ├── pipeline/              #   Pipeline, stage, and articulation stage implementations
 │   └── validators/            #   Validator + articulation validator implementations
+├── python/                    # pybind11 Python bindings
 ├── tests/                     # Test suite
 │   ├── fixtures/              #   Test fixture files (URDF, MJCF, sidecar YAML)
 │   ├── test_helpers.h         #   Programmatic mesh builders + file writers
@@ -105,7 +115,8 @@ simforge/
 │   ├── test_integration.cpp   #   End-to-end pipeline tests
 │   ├── test_articulation.cpp          # Articulation type + KinematicTree tests
 │   ├── test_articulation_validators.cpp # Articulation validator tests
-│   └── test_articulated_importers.cpp   # URDF/MJCF importer integration tests
+│   ├── test_articulated_importers.cpp   # URDF/MJCF importer integration tests
+│   └── test_bindings.py               # Python binding tests (pytest)
 ├── samples/                   # Sample assets (OBJ, STL, GLTF, URDF, MJCF)
 ├── CMakeLists.txt             # Build configuration
 ├── CHANGELOG.md               # Release history
@@ -125,7 +136,8 @@ GitHub Actions runs on every push to `develop` and on PRs to `main`.
 | `Minimal / Debug` | Build without Assimp, Debug mode |
 | `Standard / Release` | Build with Assimp, Release mode |
 | `Standard / Debug` | Build with Assimp, Debug mode |
-| `Gate` | Required status check — passes only when all matrix builds pass |
+| `Python Bindings` | Build with pybind11, run pytest suite (Python 3.11) |
+| `Gate` | Required status check — passes only when all jobs pass |
 
 **Branching workflow:** develop locally on `develop` → push → CI runs → open PR to `main` → Gate must pass to merge.
 
@@ -162,6 +174,7 @@ All dependencies are fetched automatically via CMake `FetchContent`:
 - [tinygltf](https://github.com/syoyo/tinygltf) — GLTF binary export
 - [meshoptimizer](https://github.com/zeux/meshoptimizer) — LOD mesh decimation
 - [CoACD](https://github.com/SarahWeiii/CoACD) — Convex decomposition (optional, off by default)
+- [pybind11](https://github.com/pybind/pybind11) — Python bindings (optional, off by default)
 
 ## License
 

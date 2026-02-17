@@ -149,7 +149,72 @@ sensors:
 
 The articulation stage picks this up automatically and wraps the single-body mesh in a minimal one-link KinematicTree with the sensor attached.
 
-## 6. Inspect individual assets
+## 6. Use the Python bindings
+
+SimForge provides pybind11 bindings for programmatic use from Python.
+
+### Build with Python support
+
+```bash
+cmake -B build -G Ninja -DSIMFORGE_BUILD_PYTHON=ON
+cmake --build build
+```
+
+The module is built to `build/python/simforge*.so`. Add it to your Python path:
+
+```bash
+export PYTHONPATH=build/python
+```
+
+### Python usage
+
+```python
+import simforge as sf
+
+# Inspect registries
+print(sf.available_stages())      # ['ingest', 'collision', ...]
+print(sf.list_importers())        # ['obj_builtin', 'stl_builtin']
+print(sf.available_validators())  # ['watertight', 'kinematic_tree', ...]
+
+# Format detection
+fmt = sf.detect_format("robot.urdf")  # SourceFormat.URDF
+
+# Build and run a pipeline
+config = sf.PipelineConfig.from_file("simforge.yaml")
+pipeline = sf.Pipeline(config)
+pipeline.build()
+report = pipeline.run()
+print(f"Processed {report.total_assets} assets, {report.passed} passed")
+
+# Create assets programmatically
+asset = sf.Asset()
+asset.name = "my_robot"
+asset.metadata = {"author": "vandal", "version": 2}
+
+# Articulated assets
+kt = sf.KinematicTree()
+kt.root_link = "base_link"
+kt.links = [sf.Link(), sf.Link()]
+kt.links[0].name = "base_link"   # note: assign full list, don't append
+kt.links[1].name = "arm_link"
+asset.kinematic_tree = kt
+print(asset.is_articulated())  # True
+
+# Primitive fitting
+mesh = sf.Mesh()
+mesh.vertices = [sf.Vec3(0,0,0), sf.Vec3(1,0,0), sf.Vec3(0,1,0), sf.Vec3(0,0,1)]
+mesh.faces = [sf.Triangle(0,1,2), sf.Triangle(0,1,3), sf.Triangle(0,2,3), sf.Triangle(1,2,3)]
+box = sf.fit_obb(mesh)
+sphere = sf.fit_sphere(mesh)
+```
+
+### Running Python tests
+
+```bash
+PYTHONPATH=build/python pytest tests/test_bindings.py -v
+```
+
+## 7. Inspect individual assets
 
 Check geometry details of any asset file without running the full pipeline:
 
@@ -169,7 +234,7 @@ Check geometry details of any asset file without running the full pipeline:
 
 This is useful for sanity-checking assets before feeding them into the pipeline.
 
-## 7. Validate processed assets
+## 8. Validate processed assets
 
 After processing, run standalone validation on the output directory:
 
@@ -179,7 +244,7 @@ After processing, run standalone validation on the output directory:
 
 This runs the same checks as the `validate` pipeline stage (watertight, physics plausibility, collision correctness, mesh integrity, scale sanity) but as a standalone pass.
 
-## 8. Explore available stages and adapters
+## 9. Explore available stages and adapters
 
 ```bash
 ./build/src/simforge list-stages
