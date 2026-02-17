@@ -155,3 +155,12 @@ private:
 };
 
 }  // namespace simforge
+
+namespace simforge::adapters {
+
+/// Register all built-in adapters. Safe to call multiple times.
+/// Needed when linking simforge_core as a static library since
+/// auto-registration may be stripped by the linker.
+void register_builtin_adapters();
+
+}  // namespace simforge::adapters
