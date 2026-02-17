@@ -1,4 +1,5 @@
 #include "simforge/validators/validator.h"
+#include "simforge/validators/articulation_validators.h"
 
 #include <cmath>
 #include <spdlog/spdlog.h>
@@ -14,6 +15,10 @@ ValidatorRegistry::ValidatorRegistry() {
     register_validator("collision_correctness", [] { return std::make_unique<CollisionCorrectnessValidator>(); });
     register_validator("mesh_integrity", [] { return std::make_unique<MeshIntegrityValidator>(); });
     register_validator("scale_sanity", [] { return std::make_unique<ScaleSanityValidator>(); });
+    register_validator("kinematic_tree", [] { return std::make_unique<KinematicTreeValidator>(); });
+    register_validator("actuator_plausibility", [] { return std::make_unique<ActuatorValidator>(); });
+    register_validator("sensor_plausibility", [] { return std::make_unique<SensorValidator>(); });
+    register_validator("joint_limits", [] { return std::make_unique<JointLimitsValidator>(); });
 }
 
 ValidatorRegistry& ValidatorRegistry::instance() {
