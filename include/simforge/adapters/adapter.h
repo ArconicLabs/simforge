@@ -91,6 +91,30 @@ public:
 
 using LODGeneratorPtr = std::unique_ptr<LODGenerator>;
 
+// ─── Articulated Importer ─────────────────────────────────────────
+
+/// Result of importing an articulated format (URDF, MJCF, SDF).
+struct ArticulatedImportResult {
+    KinematicTree       tree;
+    std::vector<Mesh>   all_meshes;     // flattened for backward compat
+};
+
+/// Interface for importing articulated assets that contain a kinematic
+/// tree (links, joints, actuators, sensors) in addition to meshes.
+class ArticulatedImporter {
+public:
+    virtual ~ArticulatedImporter() = default;
+
+    [[nodiscard]] virtual std::string name() const = 0;
+    [[nodiscard]] virtual std::vector<SourceFormat> supported_formats() const = 0;
+
+    virtual ArticulatedImportResult import_articulated(const fs::path& path) = 0;
+
+    [[nodiscard]] bool can_import(SourceFormat fmt) const;
+};
+
+using ArticulatedImporterPtr = std::unique_ptr<ArticulatedImporter>;
+
 // ─── Adapter Manager ───────────────────────────────────────────────
 
 /// Central registry for all adapters. The pipeline queries this
@@ -104,12 +128,14 @@ public:
     void register_exporter(MeshExporterPtr exporter);
     void register_collision_generator(CollisionGeneratorPtr gen);
     void register_lod_generator(LODGeneratorPtr gen);
+    void register_articulated_importer(ArticulatedImporterPtr importer);
 
     // Lookup
     [[nodiscard]] MeshImporter*         find_importer(SourceFormat fmt) const;
     [[nodiscard]] MeshExporter*         find_exporter(SourceFormat fmt) const;
     [[nodiscard]] CollisionGenerator*   find_collision_generator(const std::string& name) const;
     [[nodiscard]] LODGenerator*         find_lod_generator(const std::string& name) const;
+    [[nodiscard]] ArticulatedImporter*  find_articulated_importer(SourceFormat fmt) const;
 
     // Introspection
     [[nodiscard]] std::vector<std::string> list_importers() const;
@@ -121,10 +147,11 @@ public:
 private:
     AdapterManager() = default;
 
-    std::vector<MeshImporterPtr>        importers_;
-    std::vector<MeshExporterPtr>        exporters_;
-    std::vector<CollisionGeneratorPtr>  collision_generators_;
-    std::vector<LODGeneratorPtr>        lod_generators_;
+    std::vector<MeshImporterPtr>            importers_;
+    std::vector<MeshExporterPtr>            exporters_;
+    std::vector<CollisionGeneratorPtr>      collision_generators_;
+    std::vector<LODGeneratorPtr>            lod_generators_;
+    std::vector<ArticulatedImporterPtr>     articulated_importers_;
 };
 
 }  // namespace simforge
