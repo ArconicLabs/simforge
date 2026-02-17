@@ -1,4 +1,5 @@
 #include "simforge/pipeline/builtin_stages.h"
+#include "simforge/pipeline/articulation_stage.h"
 
 #include <fstream>
 
@@ -44,22 +45,36 @@ Result<Asset> IngestStage::process(Asset asset) {
         }
     }
 
-    // Find an importer
     auto& mgr = AdapterManager::instance();
-    auto* importer = mgr.find_importer(asset.source_format);
-    if (!importer) {
-        return Result<Asset>::err({
-            name(), asset.id,
-            "No importer available for " + format_to_string(asset.source_format)
-        }, std::move(asset));
-    }
 
-    spdlog::info("  Using importer: {}", importer->name());
+    // Try articulated importer first (for URDF, MJCF, SDF)
+    auto* artic_importer = mgr.find_articulated_importer(asset.source_format);
+    if (artic_importer) {
+        spdlog::info("  Using articulated importer: {}", artic_importer->name());
+        try {
+            auto result = artic_importer->import_articulated(asset.source_path);
+            asset.kinematic_tree = std::make_unique<KinematicTree>(std::move(result.tree));
+            asset.meshes = std::move(result.all_meshes);
+        } catch (const std::exception& e) {
+            return Result<Asset>::err({name(), asset.id, e.what()}, std::move(asset));
+        }
+    } else {
+        // Fall back to mesh-only importer
+        auto* importer = mgr.find_importer(asset.source_format);
+        if (!importer) {
+            return Result<Asset>::err({
+                name(), asset.id,
+                "No importer available for " + format_to_string(asset.source_format)
+            }, std::move(asset));
+        }
 
-    try {
-        asset.meshes = importer->import(asset.source_path);
-    } catch (const std::exception& e) {
-        return Result<Asset>::err({name(), asset.id, e.what()}, std::move(asset));
+        spdlog::info("  Using importer: {}", importer->name());
+
+        try {
+            asset.meshes = importer->import(asset.source_path);
+        } catch (const std::exception& e) {
+            return Result<Asset>::err({name(), asset.id, e.what()}, std::move(asset));
+        }
     }
 
     if (asset.meshes.empty()) {
@@ -122,14 +137,13 @@ void CollisionStage::configure(const YAML::Node& config) {
     }
 }
 
-Result<Asset> CollisionStage::process(Asset asset) {
-    // Merge all visual meshes into one for collision generation
-    // (many assets have multiple sub-meshes)
+/// Merge a list of meshes into a single combined mesh for collision generation.
+static Mesh merge_meshes(const std::vector<Mesh>& meshes, const std::string& name) {
     Mesh combined;
-    combined.name = asset.name + "_combined";
+    combined.name = name;
     uint32_t vertex_offset = 0;
 
-    for (const auto& mesh : asset.meshes) {
+    for (const auto& mesh : meshes) {
         for (const auto& v : mesh.vertices)
             combined.vertices.push_back(v);
         for (const auto& n : mesh.normals)
@@ -144,31 +158,61 @@ Result<Asset> CollisionStage::process(Asset asset) {
         vertex_offset += static_cast<uint32_t>(mesh.vertices.size());
     }
     combined.recompute_bounds();
+    return combined;
+}
 
-    // Try adapter-based generator first
+/// Generate collision for a single mesh using the adapter or fallback.
+static CollisionMesh generate_collision(
+    const Mesh& combined,
+    const CollisionParams& params,
+    const std::string& generator_name)
+{
     auto& mgr = AdapterManager::instance();
-    auto* gen = mgr.find_collision_generator(generator_name_);
+    auto* gen = mgr.find_collision_generator(generator_name);
 
     if (gen) {
         spdlog::info("  Using collision generator: {}", gen->name());
+        return gen->generate(combined, params);
+    }
+
+    spdlog::warn("  No collision generator '{}' found, using convex hull fallback",
+                 generator_name);
+    CollisionMesh coll;
+    coll.type = CollisionType::ConvexHull;
+    coll.hulls.push_back(combined);
+    coll.total_volume = combined.compute_volume();
+    return coll;
+}
+
+Result<Asset> CollisionStage::process(Asset asset) {
+    if (asset.is_articulated()) {
+        // Per-link collision generation
+        for (auto& link : asset.kinematic_tree->links) {
+            if (link.visual_meshes.empty() || link.collision.has_value()) continue;
+
+            auto combined = merge_meshes(link.visual_meshes, link.name + "_collision");
+            try {
+                link.collision = generate_collision(combined, params_, generator_name_);
+            } catch (const std::exception& e) {
+                spdlog::warn("  Collision generation failed for link '{}': {}", link.name, e.what());
+            }
+        }
+
+        spdlog::info("  Generated per-link collision meshes for {} links",
+                     asset.kinematic_tree->links.size());
+    } else {
+        // Single-body collision generation
+        auto combined = merge_meshes(asset.meshes, asset.name + "_combined");
+
         try {
-            asset.collision = gen->generate(combined, params_);
+            asset.collision = generate_collision(combined, params_, generator_name_);
         } catch (const std::exception& e) {
             return Result<Asset>::err({name(), asset.id, e.what()}, std::move(asset));
         }
-    } else {
-        // Fallback: use the visual mesh as a convex hull (naive but functional)
-        spdlog::warn("  No collision generator '{}' found, using convex hull fallback",
-                     generator_name_);
-        CollisionMesh coll;
-        coll.type = CollisionType::ConvexHull;
-        coll.hulls.push_back(combined);
-        coll.total_volume = combined.compute_volume();
-        asset.collision = coll;
-    }
 
-    spdlog::info("  Generated {} collision hull(s)",
-                 asset.collision->hull_count());
+        spdlog::info("  Generated {} collision hull(s)",
+                     asset.collision->hull_count());
+    }
 
     asset.status = AssetStatus::CollisionGenerated;
     return Result<Asset>::ok(std::move(asset));
@@ -195,29 +239,44 @@ void PhysicsStage::configure(const YAML::Node& config) {
 }
 
 Result<Asset> PhysicsStage::process(Asset asset) {
-    if (asset.meshes.empty()) {
-        return Result<Asset>::err({name(), asset.id, "No meshes to annotate"}, std::move(asset));
-    }
+    if (asset.is_articulated()) {
+        // Per-link physics estimation
+        for (auto& link : asset.kinematic_tree->links) {
+            if (link.physics.has_value() || link.visual_meshes.empty()) continue;
 
-    if (mass_mode_ == "geometry") {
-        // Estimate from the first mesh (or combined)
-        auto& primary = asset.meshes[0];
-        asset.physics = PhysicsProperties::estimate_from_mesh(primary, default_material_);
-        spdlog::info("  Estimated mass: {:.3f} kg (density: {:.0f} kg/m³)",
-                     asset.physics->mass, default_material_.density);
-    } else if (mass_mode_ == "explicit") {
-        // Use values from metadata if present
-        PhysicsProperties props;
-        props.material = default_material_;
-        if (asset.metadata.contains("mass")) {
-            props.mass = asset.metadata["mass"].get<float>();
+            if (mass_mode_ == "geometry") {
+                link.physics = PhysicsProperties::estimate_from_mesh(
+                    link.visual_meshes[0], default_material_);
+            } else {
+                PhysicsProperties props;
+                props.material = default_material_;
+                link.physics = props;
+            }
         }
-        asset.physics = props;
+        spdlog::info("  Estimated per-link physics for {} links",
+                     asset.kinematic_tree->links.size());
     } else {
-        // Default: just attach material properties
-        PhysicsProperties props;
-        props.material = default_material_;
-        asset.physics = props;
+        if (asset.meshes.empty()) {
+            return Result<Asset>::err({name(), asset.id, "No meshes to annotate"}, std::move(asset));
+        }
+
+        if (mass_mode_ == "geometry") {
+            auto& primary = asset.meshes[0];
+            asset.physics = PhysicsProperties::estimate_from_mesh(primary, default_material_);
+            spdlog::info("  Estimated mass: {:.3f} kg (density: {:.0f} kg/m³)",
+                         asset.physics->mass, default_material_.density);
+        } else if (mass_mode_ == "explicit") {
+            PhysicsProperties props;
+            props.material = default_material_;
+            if (asset.metadata.contains("mass")) {
+                props.mass = asset.metadata["mass"].get<float>();
+            }
+            asset.physics = props;
+        } else {
+            PhysicsProperties props;
+            props.material = default_material_;
+            asset.physics = props;
+        }
     }
 
     asset.status = AssetStatus::PhysicsAnnotated;
@@ -419,7 +478,7 @@ void ExportStage::configure(const YAML::Node& config) {
     spdlog::info("Export targets: {}", fmt_list);
 }
 
-Result<Asset> ExportStage::export_single(const Asset& asset, const ExportTarget& target) {
+std::string ExportStage::export_single(const Asset& asset, const ExportTarget& target) {
     // Determine output path
     fs::path out_dir = output_dir_;
     if (!target.subdir.empty()) {
@@ -440,18 +499,15 @@ Result<Asset> ExportStage::export_single(const Asset& asset, const ExportTarget&
     if (!exporter) {
         spdlog::warn("  No exporter for {}, writing catalog entry only",
                      format_to_string(target.format));
-        return Result<Asset>::ok(asset);
+        return {};  // success (no-op)
     }
 
     if (exporter->export_asset(asset, output_path)) {
         spdlog::info("  [{}] → {}", format_to_string(target.format), output_path.string());
-        return Result<Asset>::ok(asset);
-    } else {
-        return Result<Asset>::err({
-            name(), asset.id,
-            "Export to " + format_to_string(target.format) + " failed for " + asset.name
-        }, asset);
+        return {};  // success
     }
+
+    return "Export to " + format_to_string(target.format) + " failed for " + asset.name;
 }
 
 Result<Asset> ExportStage::process(Asset asset) {
@@ -463,9 +519,9 @@ Result<Asset> ExportStage::process(Asset asset) {
     bool any_failed = false;
 
     for (const auto& target : targets_) {
-        auto result = export_single(asset, target);
+        auto err = export_single(asset, target);
 
-        if (result.is_ok()) {
+        if (err.empty()) {
             // Record output path
             auto fmt_str = format_to_string(target.format);
             std::transform(fmt_str.begin(), fmt_str.end(), fmt_str.begin(), ::tolower);
@@ -479,8 +535,7 @@ Result<Asset> ExportStage::process(Asset asset) {
             outputs[fmt_str] = (out_dir / (asset.name + format_extension(target.format))).string();
             any_succeeded = true;
         } else {
-            spdlog::warn("  Export to {} failed: {}", format_to_string(target.format),
-                         result.error().message);
+            spdlog::warn("  Export to {} failed: {}", format_to_string(target.format), err);
             any_failed = true;
         }
     }
@@ -535,6 +590,8 @@ void register_builtin_stages() {
     auto& reg = StageRegistry::instance();
     if (!reg.has("ingest"))
         reg.register_stage("ingest", [] { return std::make_unique<IngestStage>(); });
+    if (!reg.has("articulation"))
+        reg.register_stage("articulation", [] { return std::make_unique<ArticulationStage>(); });
     if (!reg.has("collision"))
         reg.register_stage("collision", [] { return std::make_unique<CollisionStage>(); });
     if (!reg.has("physics"))

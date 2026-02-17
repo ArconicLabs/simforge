@@ -35,7 +35,9 @@ public:
     Result<Asset> process(Asset asset) override;
 
     [[nodiscard]] bool should_run(const Asset& asset) const override {
-        return asset.status == AssetStatus::Ingested && !asset.meshes.empty();
+        return (asset.status == AssetStatus::Ingested ||
+                asset.status == AssetStatus::Articulated) &&
+               !asset.meshes.empty();
     }
 
 private:
@@ -56,6 +58,9 @@ public:
     [[nodiscard]] bool should_run(const Asset& asset) const override {
         return asset.status == AssetStatus::CollisionGenerated;
     }
+
+    // Note: CollisionStage sets status to CollisionGenerated regardless of
+    // whether the asset is articulated. PhysicsStage picks up from there.
 
 private:
     PhysicsMaterial default_material_;
@@ -121,7 +126,8 @@ private:
     bool                        write_catalog_{true};
     bool                        unified_catalog_{true}; // single catalog.json for all formats
 
-    Result<Asset> export_single(const Asset& asset, const ExportTarget& target);
+    /// Returns empty string on success, error message on failure.
+    std::string export_single(const Asset& asset, const ExportTarget& target);
 };
 
 /// Explicitly register all built-in stages. Safe to call multiple times.
