@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<mujoco model="simple_arm">
+  <worldbody>
+    <body name="base_link" pos="0 0 0">
+      <inertial mass="5.0" pos="0 0 0.05" diaginertia="0.01 0.01 0.01"/>
+
+      <body name="shoulder_link" pos="0 0 0.1">
+        <inertial mass="2.0" pos="0 0 0.1" diaginertia="0.005 0.005 0.002"/>
+        <joint name="shoulder_joint" type="hinge" axis="0 0 1"
+               range="-1.57 1.57" damping="0.5" frictionloss="0.1"/>
+
+        <body name="forearm_link" pos="0 0 0.2">
+          <inertial mass="1.0" pos="0 0 0.15" diaginertia="0.002 0.002 0.001"/>
+          <joint name="elbow_joint" type="hinge" axis="0 1 0"
+                 range="-2.0 2.0" damping="0.3" frictionloss="0.05"/>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <motor name="shoulder_motor" joint="shoulder_joint" gear="100"
+           forcerange="-50 50"/>
+    <motor name="elbow_motor" joint="elbow_joint" gear="80"
+           forcerange="-30 30"/>
+  </actuator>
+
+  <sensor>
+    <gyro name="base_gyro" site="base_site" noise="0.01"/>
+    <accelerometer name="base_accel" site="base_site" noise="0.02"/>
+  </sensor>
+</mujoco>
