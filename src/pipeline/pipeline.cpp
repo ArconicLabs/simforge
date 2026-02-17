@@ -205,7 +205,7 @@ Asset Pipeline::run_stages(Asset asset, AssetReport& report) {
             report.errors.push_back(result.error());
 
             // Recover the asset in failed state
-            asset = result.value();  // may be partial
+            asset = std::move(result.value());  // may be partial
             asset.status = AssetStatus::Failed;
             return asset;
         }
