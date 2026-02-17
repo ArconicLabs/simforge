@@ -1,0 +1,11 @@
+articulation:
+  links:
+    - name: mug_body
+  sensors:
+    - name: temp_sensor
+      type: temperature
+      link: mug_body
+      properties:
+        range_min: -40.0
+        range_max: 200.0
+        resolution: 0.1
