@@ -71,6 +71,23 @@ LODGenerator* AdapterManager::find_lod_generator(const std::string& name) const 
     return lod_generators_.empty() ? nullptr : lod_generators_[0].get();
 }
 
+void AdapterManager::register_articulated_importer(ArticulatedImporterPtr importer) {
+    spdlog::debug("Registered articulated importer: {}", importer->name());
+    articulated_importers_.push_back(std::move(importer));
+}
+
+ArticulatedImporter* AdapterManager::find_articulated_importer(SourceFormat fmt) const {
+    for (auto it = articulated_importers_.rbegin(); it != articulated_importers_.rend(); ++it) {
+        if ((*it)->can_import(fmt)) return it->get();
+    }
+    return nullptr;
+}
+
+bool ArticulatedImporter::can_import(SourceFormat fmt) const {
+    auto fmts = supported_formats();
+    return std::find(fmts.begin(), fmts.end(), fmt) != fmts.end();
+}
+
 std::vector<std::string> AdapterManager::list_importers() const {
     std::vector<std::string> names;
     for (const auto& imp : importers_) names.push_back(imp->name());
@@ -88,6 +105,7 @@ void AdapterManager::reset() {
     exporters_.clear();
     collision_generators_.clear();
     lod_generators_.clear();
+    articulated_importers_.clear();
 }
 
 }  // namespace simforge
