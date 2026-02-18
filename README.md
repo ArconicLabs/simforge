@@ -69,18 +69,20 @@ See [DESIGN.md](DESIGN.md) for the full design document, [ROADMAP.md](ROADMAP.md
 
 Global option: `--log-level <trace|debug|info|warn|error>` (default: `info`)
 
+`process` options: `-j,--threads <N>` (0=auto, 1=sequential), `--force` (reprocess all, ignore cached hashes), `--dry-run`, `--json-report`
+
 ## Configuration
 
 See [simforge.yaml.example](simforge.yaml.example) for a fully commented example config.
 
 A config file has two top-level keys:
 
-- **`pipeline`** — Source/output directories and target export formats.
+- **`pipeline`** — Source/output directories, target export formats, `threads` (0=auto, 1=sequential), `force` (ignore cached hashes).
 - **`stages`** — Per-stage settings:
   - `ingest` — Accepted input formats (OBJ, STL, FBX, GLTF, URDF, MJCF, ...).
   - `articulation` — Kinematic tree configuration: links, joints, actuators, sensors. Merges data from source files, sidecar metadata (`.simforge.yaml`), and inline YAML config.
   - `collision` — Decomposition method (`coacd`, `convex_hull`, `triangle_mesh`, `primitive`), concavity threshold, max hulls.
-  - `physics` — Mass estimation strategy, density, friction, restitution.
+  - `physics` — Mass estimation strategy (`geometry`, `explicit`, `lookup`), density, friction, restitution, `material_library` path.
   - `optimize` — LOD levels and triangle budgets.
   - `validate` — Which checks to run (watertight, physics plausibility, collision correctness, mesh integrity, scale sanity, kinematic tree, actuators, sensors, joint limits).
   - `export` — Output formats and catalog generation.
@@ -93,7 +95,7 @@ simforge/
 │   └── ci.yml                 #   Build matrix + gate job
 ├── include/simforge/          # Public headers
 │   ├── adapters/              #   Adapter interfaces, mesh writer, exporter headers
-│   ├── core/                  #   Core types (Asset, Mesh, KinematicTree, Actuator, Sensor)
+│   ├── core/                  #   Core types, MaterialLibrary, hashing
 │   ├── pipeline/              #   Pipeline engine, stage interface, builtins, articulation
 │   └── validators/            #   Validator + articulation validator interfaces
 ├── src/                       # Implementation
@@ -116,7 +118,12 @@ simforge/
 │   ├── test_articulation.cpp          # Articulation type + KinematicTree tests
 │   ├── test_articulation_validators.cpp # Articulation validator tests
 │   ├── test_articulated_importers.cpp   # URDF/MJCF importer integration tests
+│   ├── test_materials.cpp             # Material library + lookup tests
+│   ├── test_parallel.cpp              # Parallel pipeline tests
+│   ├── test_incremental.cpp           # Incremental processing tests
 │   └── test_bindings.py               # Python binding tests (pytest)
+├── data/                      # Default data files
+│   └── materials.yaml         #   21 common materials (steel, rubber, ABS, ...)
 ├── samples/                   # Sample assets (OBJ, STL, GLTF, URDF, MJCF)
 ├── CMakeLists.txt             # Build configuration
 ├── CHANGELOG.md               # Release history

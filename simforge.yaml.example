@@ -11,6 +11,12 @@ pipeline:
   # Supported: usd, usda, usdc, urdf, mjcf, gltf, glb, obj, stl, fbx
   target_formats: [usd, urdf, mjcf]
 
+  # Parallel processing: 0 = auto (hardware_concurrency), 1 = sequential
+  # threads: 0
+
+  # Force reprocessing: ignore cached hashes, reprocess everything
+  # force: false
+
 stages:
   ingest:
     formats: [obj, fbx, gltf, glb, stl, step, iges, urdf, mjcf, dae]
@@ -26,6 +32,11 @@ stages:
     density: 1000.0             # kg/m³ (water = 1000, plastic ≈ 950, steel ≈ 7800)
     friction: 0.5
     restitution: 0.3
+
+    # Material library for lookup mode — maps material names to physics properties.
+    # Use mass_estimation: lookup to enable. Materials are resolved from
+    # asset.metadata["material"] or PBR material names, with geometry fallback.
+    # material_library: data/materials.yaml
 
   optimize:
     lod_levels: [high, medium, low]

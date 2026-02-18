@@ -272,6 +272,41 @@ This runs the same checks as the `validate` pipeline stage (watertight, physics 
 
 The available adapters depend on which optional dependencies are enabled. Build with `-DSIMFORGE_USE_ASSIMP=ON` (the default) to get Assimp-backed importers for GLTF, FBX, DAE, and other formats.
 
+## 10. Use the material library
+
+SimForge ships a default material library at `data/materials.yaml` with 21 common materials (steel, aluminum, rubber, ABS, wood, glass, etc.). Enable it with the `lookup` mass estimation mode:
+
+```yaml
+stages:
+  physics:
+    mass_estimation: lookup
+    material_library: data/materials.yaml
+```
+
+Materials are resolved from `asset.metadata["material"]` first, then from PBR material names. If no match is found, the stage falls back to geometry-based estimation with the default density.
+
+## 11. Parallel and incremental processing
+
+Process assets in parallel with the `-j` flag:
+
+```bash
+./build/src/simforge process -c simforge.yaml -j 0   # auto-detect threads
+./build/src/simforge process -c simforge.yaml -j 4   # use 4 threads
+```
+
+Or set it in the config:
+
+```yaml
+pipeline:
+  threads: 0  # 0 = auto, 1 = sequential
+```
+
+SimForge automatically skips unchanged assets on subsequent runs by comparing SHA-256 hashes of source files and stage configs. Use `--force` to reprocess everything:
+
+```bash
+./build/src/simforge process -c simforge.yaml --force
+```
+
 ## Next steps
 
 - Edit `simforge.yaml` to point `source` at your own asset directory

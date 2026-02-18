@@ -37,6 +37,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This pr
 - **CI**: Python bindings build job (Python 3.11, pybind11 v2.13.6) added to GitHub Actions, gated alongside existing C++ matrix
 - **Dependencies**: pybind11 v2.13.6 via FetchContent (optional, gated by `SIMFORGE_BUILD_PYTHON`)
 - **Asset copy constructor**: Deep-copy support for `Asset` (copies `unique_ptr<KinematicTree>`), needed for pybind11 vector compatibility
+- **Material library**: `MaterialLibrary` class with YAML parsing, case-insensitive lookup, and `from_file()`/`from_string()` constructors in `simforge/core/material_library.h`
+- **Default materials**: `data/materials.yaml` ships 21 common materials (steel, aluminum, rubber, ABS, wood, glass, ceramic, carbon fiber, etc.) with density, friction, and restitution values
+- **Parallel asset processing**: `std::jthread`-based per-asset parallelism with atomic work-stealing index and pre-allocated results vector — zero-contention hot path. Configurable via `pipeline.threads` in YAML or `-j,--threads` CLI flag
+- **Incremental processing**: SHA-256 content hashing of source file + stage config. Unchanged assets are skipped automatically by comparing against stored catalog hash. `--force` flag to override
+- **SHA-256 hashing utility**: Self-contained SHA-256 implementation in `simforge/core/hashing.h` — `sha256_file()`, `sha256_string()`, `compute_asset_hash()` — no OpenSSL dependency
+- **Material library tests**: 12 unit tests for MaterialLibrary parsing, lookup, and PhysicsStage integration
+- **Parallel processing tests**: 6 tests covering multi-threaded execution, sequential fallback, and thread config parsing
+- **Incremental processing tests**: 12 tests covering SHA-256 determinism, skip logic, force flag, and config change detection
 
 ### Changed
 
@@ -47,6 +55,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This pr
 - **MJCF exporter**: Emits nested `<body>` tree with `<joint>`, `<actuator>`, and `<sensor>` sections for articulated assets; single-body fallback preserved
 - **USDA exporter**: Emits `PhysicsArticulationRootAPI` with per-link Xforms and `PhysicsJoint` prims for articulated assets; also ASCII USD output with visual meshes, collision scope, and UsdPhysics schema attributes — no OpenUSD SDK required
 - **GLTF exporter**: Warns when articulation data is dropped (GLTF has no native articulation support)
+- **PhysicsStage**: `lookup` mass estimation mode resolves materials from a YAML library via `asset.metadata["material"]` or PBR material name, with geometry-based fallback
+- **Pipeline**: `output_dir` from pipeline config now injected into export stage when not overridden per-stage
+- **Asset**: Added `content_hash` field for incremental processing cache keying
 
 ## [0.1.0] — 2026-02-13
 

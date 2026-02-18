@@ -6,7 +6,7 @@ SimForge is an open-source pipeline harness that takes raw 3D assets and produce
 
 ## Current Status
 
-**Phase 4 (Articulated Asset Support + Python) is complete.** SimForge supports articulated bodies via a KinematicTree type system, URDF/MJCF importers, per-link collision and physics processing, articulation validators, and articulated export across all four formats. Python bindings (pybind11) expose the full API for programmatic use. Parallel asset processing is the next planned item.
+**Phase 5 (Pipeline Polish) is in progress.** Material library, parallel processing, and incremental processing are complete. SimForge now supports YAML-backed material lookup, multi-threaded asset processing via `std::jthread`, and SHA-256 hash-based incremental skipping of unchanged assets.
 
 ---
 
@@ -40,14 +40,14 @@ Replace placeholder fallbacks with real implementations.
 | URDF/MJCF importers | Parse description XML, resolve mesh references, preserve joint hierarchies. | Done |
 | KinematicTree type system | Link, Joint, Actuator, Sensor types with `KinematicTree` on Asset for articulated body support. | Done |
 | Python bindings | pybind11 wrappers for `Pipeline`, `Asset`, and programmatic stage configuration. | Done |
-| Parallel asset processing | Thread pool for per-asset parallelism. Stages must be stateless (they already are). | Planned |
+| Parallel asset processing | `std::jthread`-based per-asset parallelism with atomic work-stealing. `-j,--threads` CLI flag. | Done |
 
 ## Phase 5 — Pipeline Polish
 
 | Task | Description | Status |
 |------|-------------|--------|
-| Incremental processing | Hash-based skip for unchanged assets (make-style dependency tracking). | Planned |
-| Material library | Lookup table mapping material names to density/friction values (wood, steel, ceramic, etc.). | Planned |
+| Incremental processing | SHA-256 hash-based skip for unchanged assets. `--force` flag to override. | Done |
+| Material library | YAML-backed lookup table (21 materials) mapping names to density/friction. `mass_estimation: lookup` mode. | Done |
 | Headless thumbnail rendering | Generate a turntable PNG per asset for catalog preview. | Planned |
 | CI-friendly output | JUnit/TAP format validation results, structured exit codes. | Planned |
 | Importer polish | ASCII STL support, OBJ UV/material parsing, Assimp material extraction. | Planned |
@@ -74,7 +74,7 @@ Decisions from [DESIGN.md §14](DESIGN.md#14-open-questions) that have been sett
 | Question | Decision |
 |----------|----------|
 | Kinematic trees | Add a `KinematicTree` struct to `Asset` (option b) for type safety. Phase 4 — Done. |
-| Material library | Separate YAML file referenced from main config. Phase 5. |
-| Incremental processing | Hash-based (SHA-256 of source file). Phase 5. |
+| Material library | Separate YAML file referenced from main config. Phase 5 — Done. |
+| Incremental processing | Hash-based (SHA-256 of source file + stage config). Phase 5 — Done. |
 | Plugin loading | Not planned. Adapters are compiled in via CMake flags. |
 | Asset identity | Content hash (SHA-256) for deduplication. Implement alongside incremental processing. |
