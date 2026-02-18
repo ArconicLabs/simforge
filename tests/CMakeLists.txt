@@ -16,6 +16,7 @@ add_executable(simforge_tests
     test_articulation.cpp
     test_articulation_validators.cpp
     test_articulated_importers.cpp
+    test_materials.cpp
 )
 
 target_link_libraries(simforge_tests PRIVATE
