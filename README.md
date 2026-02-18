@@ -27,6 +27,13 @@ See [QUICKSTART.md](QUICKSTART.md) for a full end-to-end walkthrough.
 ### Python
 
 ```bash
+pip install .                    # install via pip (requires scikit-build-core)
+python3 -c "import simforge as sf; print(sf.available_stages())"
+```
+
+Or build manually:
+
+```bash
 cmake -B build -G Ninja -DSIMFORGE_BUILD_PYTHON=ON && cmake --build build
 PYTHONPATH=build/python python3 -c "import simforge as sf; print(sf.available_stages())"
 ```
@@ -67,7 +74,7 @@ See [DESIGN.md](DESIGN.md) for the full design document, [ROADMAP.md](ROADMAP.md
 | `init`          | Generate a default `simforge.yaml` config    |
 | `validate`      | Run validators on processed assets           |
 
-Global option: `--log-level <trace|debug|info|warn|error>` (default: `info`)
+Global options: `--version`, `--log-level <trace|debug|info|warn|error>` (default: `info`)
 
 `process` options: `-j,--threads <N>` (0=auto, 1=sequential), `--force` (reprocess all, ignore cached hashes), `--dry-run`, `--json-report`
 
@@ -81,7 +88,7 @@ A config file has two top-level keys:
 - **`stages`** — Per-stage settings:
   - `ingest` — Accepted input formats (OBJ, STL, FBX, GLTF, URDF, MJCF, ...).
   - `articulation` — Kinematic tree configuration: links, joints, actuators, sensors. Merges data from source files, sidecar metadata (`.simforge.yaml`), and inline YAML config.
-  - `collision` — Decomposition method (`coacd`, `convex_hull`, `triangle_mesh`, `primitive`), concavity threshold, max hulls.
+  - `collision` — Decomposition method (`convex_hull`, `coacd`, `triangle_mesh`, `primitive`), concavity threshold, max hulls. Default: `convex_hull` (CoACD requires `-DSIMFORGE_USE_COACD=ON`).
   - `physics` — Mass estimation strategy (`geometry`, `explicit`, `lookup`), density, friction, restitution, `material_library` path.
   - `optimize` — LOD levels and triangle budgets.
   - `validate` — Which checks to run (watertight, physics plausibility, collision correctness, mesh integrity, scale sanity, kinematic tree, actuators, sensors, joint limits).
@@ -92,7 +99,8 @@ A config file has two top-level keys:
 ```
 simforge/
 ├── .github/workflows/         # CI/CD
-│   └── ci.yml                 #   Build matrix + gate job
+│   ├── ci.yml                 #   Build matrix + gate job
+│   └── release.yml            #   Tag-triggered release builds
 ├── include/simforge/          # Public headers
 │   ├── adapters/              #   Adapter interfaces, mesh writer, exporter headers
 │   ├── core/                  #   Core types, MaterialLibrary, hashing
@@ -121,11 +129,13 @@ simforge/
 │   ├── test_materials.cpp             # Material library + lookup tests
 │   ├── test_parallel.cpp              # Parallel pipeline tests
 │   ├── test_incremental.cpp           # Incremental processing tests
+│   ├── test_coverage_gaps.cpp         # Articulated export, edge case, and stage tests
 │   └── test_bindings.py               # Python binding tests (pytest)
 ├── data/                      # Default data files
 │   └── materials.yaml         #   21 common materials (steel, rubber, ABS, ...)
 ├── samples/                   # Sample assets (OBJ, STL, GLTF, URDF, MJCF)
 ├── CMakeLists.txt             # Build configuration
+├── pyproject.toml             # Python packaging (pip install .)
 ├── CHANGELOG.md               # Release history
 ├── DESIGN.md                  # Full design document
 ├── QUICKSTART.md              # End-to-end walkthrough
@@ -135,7 +145,7 @@ simforge/
 
 ## CI/CD
 
-GitHub Actions runs on every push to `develop` and on PRs to `main`.
+GitHub Actions runs on every push to `develop` and on PRs to `main` or `develop`.
 
 | Job | Description |
 |-----|-------------|
@@ -145,6 +155,8 @@ GitHub Actions runs on every push to `develop` and on PRs to `main`.
 | `Standard / Debug` | Build with Assimp, Debug mode |
 | `Python Bindings` | Build with pybind11, run pytest suite (Python 3.11) |
 | `Gate` | Required status check — passes only when all jobs pass |
+
+A separate **release workflow** triggers on version tags (`v*`) — builds, tests, packages, and creates a GitHub Release with artifacts.
 
 **Branching workflow:** develop locally on `develop` → push → CI runs → open PR to `main` → Gate must pass to merge.
 
