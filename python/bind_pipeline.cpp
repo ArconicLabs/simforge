@@ -78,6 +78,7 @@ void bind_pipeline(py::module_& m) {
         .def_readwrite("output_dir",      &PipelineConfig::output_dir)
         .def_readwrite("target_formats",  &PipelineConfig::target_formats)
         .def_readwrite("stage_order",     &PipelineConfig::stage_order)
+        .def_readwrite("threads",         &PipelineConfig::threads)
         .def_static("from_file",   &PipelineConfig::from_file, py::arg("config_path"))
         .def_static("from_string", &PipelineConfig::from_string, py::arg("yaml_str"));
 

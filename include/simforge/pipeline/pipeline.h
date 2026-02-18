@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -21,6 +22,7 @@ struct PipelineConfig {
     fs::path                output_dir;
     std::vector<SourceFormat>   target_formats;   // one or more output formats
     std::vector<std::string>    stage_order;
+    uint32_t                threads{1};       // 0 = auto (hardware_concurrency), 1 = sequential
     YAML::Node              raw;            // full parsed YAML for stage-level config
 
     static PipelineConfig from_file(const fs::path& config_path);
@@ -79,6 +81,7 @@ private:
     std::vector<StagePtr>   stages_;
 
     Asset run_stages(Asset asset, AssetReport& report);
+    PipelineReport run_parallel(std::vector<Asset> assets);
 };
 
 }  // namespace simforge

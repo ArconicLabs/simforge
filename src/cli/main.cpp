@@ -33,11 +33,14 @@ int main(int argc, char** argv) {
     bool dry_run = false;
     bool json_report = false;
     std::string report_path = "report.json";
+    uint32_t threads = 0;  // 0 = use config value
 
     process_cmd->add_option("-c,--config", config_path, "Path to config file")
                ->default_val("simforge.yaml");
     process_cmd->add_option("-s,--source", source_dir, "Source directory (overrides config)");
     process_cmd->add_option("-o,--output", output_dir, "Output directory (overrides config)");
+    process_cmd->add_option("-j,--threads", threads, "Number of threads (0=auto, 1=sequential)")
+               ->default_val(0);
     process_cmd->add_flag("--dry-run", dry_run, "Show what would be processed without running");
     process_cmd->add_flag("--json-report", json_report, "Write JSON report");
     process_cmd->add_option("--report-path", report_path, "Path for JSON report")
@@ -97,6 +100,7 @@ int main(int argc, char** argv) {
             // CLI overrides
             if (!source_dir.empty()) config.source_dir = source_dir;
             if (!output_dir.empty()) config.output_dir = output_dir;
+            if (threads > 0) config.threads = threads;
 
             simforge::Pipeline pipeline(std::move(config));
             pipeline.build();

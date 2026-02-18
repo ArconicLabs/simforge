@@ -1,8 +1,10 @@
 #include "simforge/pipeline/pipeline.h"
 
+#include <atomic>
 #include <chrono>
 #include <fstream>
 #include <iomanip>
+#include <thread>
 
 #include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
@@ -64,6 +66,9 @@ PipelineConfig PipelineConfig::from_string(const std::string& yaml_str) {
     if (config.stage_order.empty()) {
         config.stage_order = {"ingest", "collision", "physics", "optimize", "validate", "export"};
     }
+
+    // Thread count: 0 = auto, 1 = sequential (default)
+    config.threads = pipeline["threads"].as<uint32_t>(1);
 
     return config;
 }
@@ -145,25 +150,83 @@ std::vector<Asset> Pipeline::discover_assets() const {
 }
 
 PipelineReport Pipeline::run() {
-    PipelineReport report;
     auto start = std::chrono::high_resolution_clock::now();
-
     auto assets = discover_assets();
+
+    // Resolve effective thread count
+    uint32_t effective_threads = config_.threads;
+    if (effective_threads == 0) {
+        effective_threads = std::max(1u, std::thread::hardware_concurrency());
+    }
+
+    PipelineReport report;
     report.total_assets = assets.size();
 
-    for (auto& asset : assets) {
-        auto asset_report = run_single(std::move(asset));
-        if (asset_report.final_status == AssetStatus::Failed) {
-            report.failed++;
-        } else {
-            report.passed++;
+    if (effective_threads > 1 && assets.size() > 1) {
+        report = run_parallel(std::move(assets));
+    } else {
+        for (auto& asset : assets) {
+            auto asset_report = run_single(std::move(asset));
+            if (asset_report.final_status == AssetStatus::Failed) {
+                report.failed++;
+            } else {
+                report.passed++;
+            }
+            report.asset_reports.push_back(std::move(asset_report));
         }
-        report.asset_reports.push_back(std::move(asset_report));
     }
 
     auto end = std::chrono::high_resolution_clock::now();
     report.total_time_ms =
         std::chrono::duration<double, std::milli>(end - start).count();
+
+    return report;
+}
+
+PipelineReport Pipeline::run_parallel(std::vector<Asset> assets) {
+    uint32_t effective_threads = config_.threads;
+    if (effective_threads == 0)
+        effective_threads = std::max(1u, std::thread::hardware_concurrency());
+    effective_threads = std::min(effective_threads, static_cast<uint32_t>(assets.size()));
+
+    spdlog::info("Processing {} assets with {} threads", assets.size(), effective_threads);
+
+    // Pre-create output directory to avoid filesystem races
+    fs::create_directories(config_.output_dir);
+
+    // Pre-size results vector for lock-free positional writes
+    PipelineReport report;
+    report.total_assets = assets.size();
+    report.asset_reports.resize(assets.size());
+
+    std::atomic<size_t> next_index{0};
+
+    auto worker = [&](std::stop_token) {
+        while (true) {
+            size_t idx = next_index.fetch_add(1, std::memory_order_relaxed);
+            if (idx >= assets.size()) break;
+
+            report.asset_reports[idx] = run_single(std::move(assets[idx]));
+        }
+    };
+
+    std::vector<std::jthread> threads;
+    threads.reserve(effective_threads);
+    for (uint32_t i = 0; i < effective_threads; ++i) {
+        threads.emplace_back(worker);
+    }
+
+    // jthread destructors auto-join
+    threads.clear();
+
+    // Tally results
+    for (const auto& ar : report.asset_reports) {
+        if (ar.final_status == AssetStatus::Failed) {
+            report.failed++;
+        } else {
+            report.passed++;
+        }
+    }
 
     return report;
 }
