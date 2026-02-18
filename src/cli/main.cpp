@@ -271,6 +271,10 @@ int main(int argc, char** argv) {
 
     if (init_cmd->parsed()) {
         std::ofstream out(init_output);
+        if (!out) {
+            spdlog::error("Failed to open {} for writing", init_output);
+            return 1;
+        }
         out << R"(# simforge.yaml — asset pipeline configuration
 # See https://github.com/ArconicLabs/simforge for documentation
 
@@ -328,6 +332,10 @@ stages:
     #     subdir: mujoco/
     catalog: true
 )";
+        if (!out.good()) {
+            spdlog::error("Failed to write config to {}", init_output);
+            return 1;
+        }
         spdlog::info("Generated config at {}", init_output);
         return 0;
     }

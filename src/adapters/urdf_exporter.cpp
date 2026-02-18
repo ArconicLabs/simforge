@@ -113,7 +113,9 @@ private:
             for (size_t i = 0; i < link.visual_meshes.size(); i++) {
                 auto filename = link.name + "_visual_" + std::to_string(i) + ".obj";
                 auto path = mesh_dir / filename;
-                write_obj(link.visual_meshes[i], path);
+                if (!write_obj(link.visual_meshes[i], path)) {
+                    spdlog::warn("URDF exporter: failed to write visual mesh for link '{}'", link.name);
+                }
 
                 auto* visual = doc.NewElement("visual");
                 link_el->InsertEndChild(visual);
@@ -131,7 +133,9 @@ private:
             if (link.collision && !link.collision->hulls.empty()) {
                 auto filename = link.name + "_collision.obj";
                 auto path = mesh_dir / filename;
-                write_obj_multi(link.collision->hulls, path);
+                if (!write_obj_multi(link.collision->hulls, path)) {
+                    spdlog::warn("URDF exporter: failed to write collision mesh for link '{}'", link.name);
+                }
 
                 auto* collision = doc.NewElement("collision");
                 link_el->InsertEndChild(collision);

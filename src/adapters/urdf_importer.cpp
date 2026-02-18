@@ -207,7 +207,9 @@ private:
                                     cm.hulls.push_back(std::move(m));
                                 }
                                 link.collision = std::move(cm);
-                            } catch (...) {}
+                            } catch (const std::exception& e) {
+                                spdlog::warn("Failed to load collision mesh '{}': {}", filename, e.what());
+                            }
                         }
                     }
                 }
@@ -286,7 +288,8 @@ private:
 
         auto* ratio = elem->FirstChildElement("mechanicalReduction");
         if (ratio && ratio->GetText()) {
-            act.gear_ratio = std::stof(ratio->GetText());
+            try { act.gear_ratio = std::stof(ratio->GetText()); }
+            catch (...) { spdlog::warn("Invalid mechanicalReduction value: '{}'", ratio->GetText()); }
         }
 
         return act;
@@ -301,7 +304,8 @@ private:
 
         auto* rate = elem->FirstChildElement("update_rate");
         if (rate && rate->GetText()) {
-            sensor.properties["update_rate"] = std::stof(rate->GetText());
+            try { sensor.properties["update_rate"] = std::stof(rate->GetText()); }
+            catch (...) { spdlog::warn("Invalid update_rate value: '{}'", rate->GetText()); }
         }
 
         return sensor;

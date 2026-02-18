@@ -77,7 +77,7 @@ Result<Asset> IngestStage::process(Asset asset) {
         }
     }
 
-    if (asset.meshes.empty()) {
+    if (asset.meshes.empty() && !asset.is_articulated()) {
         return Result<Asset>::err({
             name(), asset.id, "Importer returned no meshes"
         }, std::move(asset));
@@ -603,8 +603,16 @@ Result<Asset> ExportStage::process(Asset asset) {
         entry["export_targets"] = outputs;
 
         std::ofstream out(catalog_path);
-        out << entry.dump(2);
-        spdlog::info("  Catalog → {}", catalog_path.string());
+        if (!out) {
+            spdlog::error("  Failed to open catalog file: {}", catalog_path.string());
+        } else {
+            out << entry.dump(2);
+            if (!out.good()) {
+                spdlog::error("  Failed to write catalog file: {}", catalog_path.string());
+            } else {
+                spdlog::info("  Catalog → {}", catalog_path.string());
+            }
+        }
     }
 
     if (!any_succeeded) {
