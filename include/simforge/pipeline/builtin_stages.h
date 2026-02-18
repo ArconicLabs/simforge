@@ -1,5 +1,6 @@
 #pragma once
 
+#include "simforge/core/material_library.h"
 #include "simforge/pipeline/stage.h"
 #include "simforge/adapters/adapter.h"
 #include "simforge/validators/validator.h"
@@ -63,8 +64,14 @@ public:
     // whether the asset is articulated. PhysicsStage picks up from there.
 
 private:
-    PhysicsMaterial default_material_;
-    std::string     mass_mode_{"geometry"};  // "geometry", "explicit", "lookup"
+    PhysicsMaterial                default_material_;
+    std::string                    mass_mode_{"geometry"};  // "geometry", "explicit", "lookup"
+    std::optional<MaterialLibrary> material_library_;
+
+    /// Resolve a material from the library using metadata or PBR names.
+    const PhysicsMaterial* resolve_material(
+        const nlohmann::json& metadata,
+        const std::vector<PBRMaterial>& pbr_materials) const;
 };
 
 // ─── Optimize Stage ────────────────────────────────────────────────
