@@ -195,6 +195,9 @@ private:
                 auto* child = tree.find_link(joint->child_link);
                 if (child) {
                     emit_link_xform(out, *child, tree, children, depth + 1);
+                } else {
+                    spdlog::warn("USDA exporter: child link '{}' not found, skipping subtree",
+                                 joint->child_link);
                 }
             }
         }

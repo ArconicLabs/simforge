@@ -38,14 +38,22 @@ PipelineConfig PipelineConfig::from_string(const std::string& yaml_str) {
     // Parse target format(s) — supports both single and list syntax
     if (auto fmts = pipeline["target_formats"]) {
         for (const auto& f : fmts) {
-            auto fmt = parse_format(f.as<std::string>());
-            if (fmt != SourceFormat::Unknown)
+            auto name = f.as<std::string>();
+            auto fmt = parse_format(name);
+            if (fmt != SourceFormat::Unknown) {
                 config.target_formats.push_back(fmt);
+            } else {
+                spdlog::warn("Unknown target format '{}', ignoring", name);
+            }
         }
     } else if (auto fmt = pipeline["target_format"]) {
-        auto parsed = parse_format(fmt.as<std::string>("usd"));
-        if (parsed != SourceFormat::Unknown)
+        auto name = fmt.as<std::string>("usd");
+        auto parsed = parse_format(name);
+        if (parsed != SourceFormat::Unknown) {
             config.target_formats.push_back(parsed);
+        } else {
+            spdlog::warn("Unknown target format '{}', ignoring", name);
+        }
     }
 
     if (config.target_formats.empty()) {
@@ -134,7 +142,8 @@ std::vector<Asset> Pipeline::discover_assets() const {
     }
 
     uint32_t counter = 0;
-    for (const auto& entry : fs::recursive_directory_iterator(config_.source_dir)) {
+    for (const auto& entry : fs::recursive_directory_iterator(
+            config_.source_dir, fs::directory_options::skip_permission_denied)) {
         if (!entry.is_regular_file()) continue;
 
         auto fmt = detect_format(entry.path());
@@ -169,8 +178,9 @@ bool Pipeline::should_skip_asset(const Asset& asset) const {
             catalog["content_hash"].get<std::string>() == asset.content_hash) {
             return true;
         }
-    } catch (...) {
-        // Corrupted catalog — reprocess
+    } catch (const std::exception& e) {
+        spdlog::warn("Catalog '{}' unreadable ({}), will reprocess",
+                     catalog_path.string(), e.what());
     }
     return false;
 }
@@ -192,8 +202,9 @@ PipelineReport Pipeline::run() {
     for (auto& asset : assets) {
         try {
             asset.content_hash = compute_asset_hash(asset.source_path, config_yaml);
-        } catch (...) {
-            // Hash failure is non-fatal — asset will be processed
+        } catch (const std::exception& e) {
+            spdlog::warn("Hash failed for '{}': {} — will reprocess",
+                         asset.source_path.string(), e.what());
         }
     }
 
@@ -432,8 +443,16 @@ void PipelineReport::write_json(const fs::path& path) const {
     }
 
     std::ofstream out(path);
+    if (!out) {
+        spdlog::error("Cannot open report file: {}", path.string());
+        return;
+    }
     out << j.dump(2);
-    spdlog::info("Report written to {}", path.string());
+    if (!out.good()) {
+        spdlog::error("Failed to write report to {}", path.string());
+    } else {
+        spdlog::info("Report written to {}", path.string());
+    }
 }
 
 }  // namespace simforge
