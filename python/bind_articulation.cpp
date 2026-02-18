@@ -74,7 +74,7 @@ void bind_articulation(py::module_& m) {
 
     // ── Joint ───────────────────────────────────────────────────────
 
-    py::class_<Joint>(m, "Joint")
+    py::class_<Joint>(m, "Joint", "Kinematic joint connecting two links.")
         .def(py::init<>())
         .def_readwrite("name",        &Joint::name)
         .def_readwrite("type",        &Joint::type)
@@ -91,7 +91,7 @@ void bind_articulation(py::module_& m) {
 
     // ── Actuator ────────────────────────────────────────────────────
 
-    py::class_<Actuator>(m, "Actuator")
+    py::class_<Actuator>(m, "Actuator", "Motor or controller attached to a joint.")
         .def(py::init<>())
         .def_readwrite("name",         &Actuator::name)
         .def_readwrite("joint",        &Actuator::joint)
@@ -105,7 +105,7 @@ void bind_articulation(py::module_& m) {
 
     // ── Sensor ──────────────────────────────────────────────────────
 
-    py::class_<Sensor>(m, "Sensor")
+    py::class_<Sensor>(m, "Sensor", "Sensor attached to a link (e.g. IMU, force/torque).")
         .def(py::init<>())
         .def_readwrite("name",   &Sensor::name)
         .def_readwrite("type",   &Sensor::type)
@@ -118,7 +118,7 @@ void bind_articulation(py::module_& m) {
 
     // ── Link ────────────────────────────────────────────────────────
 
-    py::class_<Link>(m, "Link")
+    py::class_<Link>(m, "Link", "Rigid body in a kinematic tree with visual/collision meshes.")
         .def(py::init<>())
         .def_readwrite("name",           &Link::name)
         .def_readwrite("visual_meshes",  &Link::visual_meshes)
@@ -133,7 +133,8 @@ void bind_articulation(py::module_& m) {
 
     // ── KinematicTree ───────────────────────────────────────────────
 
-    py::class_<KinematicTree>(m, "KinematicTree")
+    py::class_<KinematicTree>(m, "KinematicTree",
+             "Articulated structure with links, joints, actuators, and sensors.")
         .def(py::init<>())
         .def_readwrite("root_link",  &KinematicTree::root_link)
         .def_readwrite("links",      &KinematicTree::links)
@@ -141,14 +142,20 @@ void bind_articulation(py::module_& m) {
         .def_readwrite("actuators",  &KinematicTree::actuators)
         .def_readwrite("sensors",    &KinematicTree::sensors)
         .def("find_link", &KinematicTree::find_link,
-            py::arg("name"), py::return_value_policy::reference_internal)
+            py::arg("name"), py::return_value_policy::reference_internal,
+            "Find a link by name, or None if not found.")
         .def("find_joint", &KinematicTree::find_joint,
-            py::arg("name"), py::return_value_policy::reference_internal)
+            py::arg("name"), py::return_value_policy::reference_internal,
+            "Find a joint by name, or None if not found.")
         .def("find_actuator_for_joint", &KinematicTree::find_actuator_for_joint,
-            py::arg("joint_name"), py::return_value_policy::reference_internal)
-        .def("dof",         &KinematicTree::dof)
-        .def("is_tree",     &KinematicTree::is_tree)
-        .def("build_index", &KinematicTree::build_index)
+            py::arg("joint_name"), py::return_value_policy::reference_internal,
+            "Find the actuator attached to a joint, or None.")
+        .def("dof",         &KinematicTree::dof,
+            "Degrees of freedom (non-fixed joints).")
+        .def("is_tree",     &KinematicTree::is_tree,
+            "True if the structure forms a valid tree (no cycles).")
+        .def("build_index", &KinematicTree::build_index,
+            "Rebuild the internal name-to-index lookup tables.")
         .def("__repr__", [](const KinematicTree& kt) {
             return "<KinematicTree root='" + kt.root_link + "' links="
                    + std::to_string(kt.links.size()) + " joints="

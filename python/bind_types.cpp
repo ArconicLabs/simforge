@@ -45,7 +45,7 @@ void bind_types(py::module_& m) {
 
     // ── Vec3 ────────────────────────────────────────────────────────
 
-    py::class_<Vec3>(m, "Vec3")
+    py::class_<Vec3>(m, "Vec3", "3D vector with x, y, z components.")
         .def(py::init<>())
         .def(py::init<float, float, float>(), py::arg("x"), py::arg("y"), py::arg("z"))
         .def_readwrite("x", &Vec3::x)
@@ -62,7 +62,7 @@ void bind_types(py::module_& m) {
 
     // ── AABB ────────────────────────────────────────────────────────
 
-    py::class_<AABB>(m, "AABB")
+    py::class_<AABB>(m, "AABB", "Axis-aligned bounding box.")
         .def(py::init<>())
         .def_readwrite("min", &AABB::min)
         .def_readwrite("max", &AABB::max)
@@ -93,7 +93,7 @@ void bind_types(py::module_& m) {
 
     // ── Mesh ────────────────────────────────────────────────────────
 
-    py::class_<Mesh>(m, "Mesh")
+    py::class_<Mesh>(m, "Mesh", "Triangle mesh with vertices, normals, faces, and UVs.")
         .def(py::init<>())
         .def_readwrite("name",     &Mesh::name)
         .def_readwrite("vertices", &Mesh::vertices)
@@ -101,12 +101,12 @@ void bind_types(py::module_& m) {
         .def_readwrite("faces",    &Mesh::faces)
         .def_readwrite("uvs",      &Mesh::uvs)
         .def_readwrite("bounds",   &Mesh::bounds)
-        .def("triangle_count",    &Mesh::triangle_count)
-        .def("vertex_count",      &Mesh::vertex_count)
-        .def("empty",             &Mesh::empty)
-        .def("recompute_bounds",  &Mesh::recompute_bounds)
-        .def("compute_volume",    &Mesh::compute_volume)
-        .def("is_watertight",     &Mesh::is_watertight)
+        .def("triangle_count",    &Mesh::triangle_count, "Number of triangles.")
+        .def("vertex_count",      &Mesh::vertex_count, "Number of vertices.")
+        .def("empty",             &Mesh::empty, "True if the mesh has no vertices.")
+        .def("recompute_bounds",  &Mesh::recompute_bounds, "Recompute the axis-aligned bounding box.")
+        .def("compute_volume",    &Mesh::compute_volume, "Compute signed volume (accurate for watertight meshes).")
+        .def("is_watertight",     &Mesh::is_watertight, "True if every edge is shared by exactly two triangles.")
         .def("__repr__", [](const Mesh& mesh) {
             return "<Mesh '" + mesh.name + "' verts=" + std::to_string(mesh.vertex_count())
                    + " tris=" + std::to_string(mesh.triangle_count()) + ">";
@@ -138,7 +138,7 @@ void bind_types(py::module_& m) {
 
     // ── ValidationResult ────────────────────────────────────────────
 
-    py::class_<ValidationResult>(m, "ValidationResult")
+    py::class_<ValidationResult>(m, "ValidationResult", "Result of a single validation check.")
         .def(py::init<>())
         .def_readwrite("passed",     &ValidationResult::passed)
         .def_readwrite("check_name", &ValidationResult::check_name)

@@ -27,7 +27,7 @@ void bind_pipeline(py::module_& m) {
 
     // ── StageError ──────────────────────────────────────────────────
 
-    py::class_<StageError>(m, "StageError")
+    py::class_<StageError>(m, "StageError", "Error produced by a pipeline stage.")
         .def(py::init<>())
         .def_readwrite("stage_name", &StageError::stage_name)
         .def_readwrite("asset_id",   &StageError::asset_id)
@@ -38,7 +38,7 @@ void bind_pipeline(py::module_& m) {
 
     // ── AssetReport ─────────────────────────────────────────────────
 
-    py::class_<AssetReport>(m, "AssetReport")
+    py::class_<AssetReport>(m, "AssetReport", "Per-asset processing report with status, timing, and errors.")
         .def(py::init<>())
         .def_readwrite("asset_id",          &AssetReport::asset_id)
         .def_readwrite("asset_name",        &AssetReport::asset_name)
@@ -55,15 +55,17 @@ void bind_pipeline(py::module_& m) {
 
     // ── PipelineReport ──────────────────────────────────────────────
 
-    py::class_<PipelineReport>(m, "PipelineReport")
+    py::class_<PipelineReport>(m, "PipelineReport", "Aggregate report for a full pipeline run.")
         .def(py::init<>())
         .def_readwrite("total_assets",  &PipelineReport::total_assets)
         .def_readwrite("passed",        &PipelineReport::passed)
         .def_readwrite("failed",        &PipelineReport::failed)
         .def_readwrite("total_time_ms", &PipelineReport::total_time_ms)
         .def_readwrite("asset_reports", &PipelineReport::asset_reports)
-        .def("print_summary",          &PipelineReport::print_summary)
-        .def("write_json",             &PipelineReport::write_json, py::arg("path"))
+        .def("print_summary",          &PipelineReport::print_summary,
+             "Print a human-readable summary to the log.")
+        .def("write_json",             &PipelineReport::write_json, py::arg("path"),
+             "Write the report as JSON to the given file path.")
         .def("__repr__", [](const PipelineReport& r) {
             return "<PipelineReport assets=" + std::to_string(r.total_assets)
                    + " passed=" + std::to_string(r.passed)
@@ -72,7 +74,8 @@ void bind_pipeline(py::module_& m) {
 
     // ── PipelineConfig ──────────────────────────────────────────────
 
-    py::class_<PipelineConfig>(m, "PipelineConfig")
+    py::class_<PipelineConfig>(m, "PipelineConfig",
+             "Pipeline configuration parsed from YAML. Use from_file() or from_string().")
         .def(py::init<>())
         .def_readwrite("source_dir",      &PipelineConfig::source_dir)
         .def_readwrite("output_dir",      &PipelineConfig::output_dir)
@@ -80,12 +83,15 @@ void bind_pipeline(py::module_& m) {
         .def_readwrite("stage_order",     &PipelineConfig::stage_order)
         .def_readwrite("threads",         &PipelineConfig::threads)
         .def_readwrite("force",           &PipelineConfig::force)
-        .def_static("from_file",   &PipelineConfig::from_file, py::arg("config_path"))
-        .def_static("from_string", &PipelineConfig::from_string, py::arg("yaml_str"));
+        .def_static("from_file",   &PipelineConfig::from_file, py::arg("config_path"),
+             "Load pipeline config from a YAML file.")
+        .def_static("from_string", &PipelineConfig::from_string, py::arg("yaml_str"),
+             "Parse pipeline config from a YAML string.");
 
     // ── Asset ───────────────────────────────────────────────────────
 
-    py::class_<Asset>(m, "Asset")
+    py::class_<Asset>(m, "Asset",
+             "A 3D asset with meshes, physics, collision, and optional articulation.")
         .def(py::init<>())
         .def_readwrite("id",            &Asset::id)
         .def_readwrite("name",          &Asset::name)
@@ -117,8 +123,10 @@ void bind_pipeline(py::module_& m) {
         .def_property("metadata",
             [](const Asset& a) { return json_to_py(a.metadata); },
             [](Asset& a, const py::object& obj) { a.metadata = py_to_json(obj); })
-        .def("is_articulated",          &Asset::is_articulated)
-        .def("all_validations_passed",  &Asset::all_validations_passed)
+        .def("is_articulated",          &Asset::is_articulated,
+             "True if this asset has a kinematic tree (joints, links).")
+        .def("all_validations_passed",  &Asset::all_validations_passed,
+             "True if every validation check passed.")
         .def("__repr__", [](const Asset& a) {
             return "<Asset '" + a.name + "' meshes="
                    + std::to_string(a.meshes.size())
@@ -127,15 +135,22 @@ void bind_pipeline(py::module_& m) {
 
     // ── Pipeline ────────────────────────────────────────────────────
 
-    py::class_<Pipeline>(m, "Pipeline")
-        .def(py::init<PipelineConfig>(), py::arg("config"))
-        .def("build",       &Pipeline::build)
+    py::class_<Pipeline>(m, "Pipeline",
+             "Asset processing pipeline. Call build() then run().")
+        .def(py::init<PipelineConfig>(), py::arg("config"),
+             "Construct a pipeline from a PipelineConfig.")
+        .def("build",       &Pipeline::build,
+             "Build the stage chain from config. Must be called before run().")
         .def("run", [](Pipeline& p) {
             py::gil_scoped_release release;
             return p.run();
-        })
-        .def("run_single",      &Pipeline::run_single, py::arg("asset"))
-        .def("dry_run",         &Pipeline::dry_run)
-        .def("discover_assets", &Pipeline::discover_assets)
-        .def("stage_names",     &Pipeline::stage_names);
+        }, "Run the full pipeline on all discovered assets. Releases the GIL.")
+        .def("run_single",      &Pipeline::run_single, py::arg("asset"),
+             "Process a single asset through all stages.")
+        .def("dry_run",         &Pipeline::dry_run,
+             "Preview what would be processed without running stages.")
+        .def("discover_assets", &Pipeline::discover_assets,
+             "Scan the source directory and return discovered assets.")
+        .def("stage_names",     &Pipeline::stage_names,
+             "Return the names of all built stages.");
 }

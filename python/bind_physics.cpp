@@ -16,7 +16,7 @@ void bind_physics(py::module_& m) {
 
     // ── PhysicsMaterial ─────────────────────────────────────────────
 
-    py::class_<PhysicsMaterial>(m, "PhysicsMaterial")
+    py::class_<PhysicsMaterial>(m, "PhysicsMaterial", "Surface material with density and friction.")
         .def(py::init<>())
         .def_readwrite("name",             &PhysicsMaterial::name)
         .def_readwrite("density",          &PhysicsMaterial::density)
@@ -30,7 +30,8 @@ void bind_physics(py::module_& m) {
 
     // ── PhysicsProperties ───────────────────────────────────────────
 
-    py::class_<PhysicsProperties>(m, "PhysicsProperties")
+    py::class_<PhysicsProperties>(m, "PhysicsProperties",
+             "Mass, inertia, and material properties for physics simulation.")
         .def(py::init<>())
         .def_readwrite("mass",             &PhysicsProperties::mass)
         .def_readwrite("center_of_mass",   &PhysicsProperties::center_of_mass)
@@ -39,7 +40,8 @@ void bind_physics(py::module_& m) {
         .def_readwrite("is_static",        &PhysicsProperties::is_static)
         .def_readwrite("mass_estimated",   &PhysicsProperties::mass_estimated)
         .def_static("estimate_from_mesh",  &PhysicsProperties::estimate_from_mesh,
-            py::arg("mesh"), py::arg("material"))
+            py::arg("mesh"), py::arg("material"),
+            "Estimate mass and inertia from mesh volume and material density.")
         .def("__repr__", [](const PhysicsProperties& pp) {
             return "<PhysicsProperties mass=" + std::to_string(pp.mass)
                    + (pp.is_static ? " static" : "") + ">";
@@ -47,7 +49,7 @@ void bind_physics(py::module_& m) {
 
     // ── CollisionMesh ───────────────────────────────────────────────
 
-    py::class_<CollisionMesh>(m, "CollisionMesh")
+    py::class_<CollisionMesh>(m, "CollisionMesh", "Collision geometry as a set of convex hulls.")
         .def(py::init<>())
         .def_readwrite("type",         &CollisionMesh::type)
         .def_readwrite("hulls",        &CollisionMesh::hulls)
