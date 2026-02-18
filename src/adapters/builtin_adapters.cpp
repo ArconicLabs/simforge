@@ -249,6 +249,10 @@ std::vector<Mesh> OBJImporter::import(const fs::path& path) {
         }
     }
 
+    if (file.bad()) {
+        throw std::runtime_error("Read error while parsing OBJ: " + path.string());
+    }
+
     return {mesh};
 }
 

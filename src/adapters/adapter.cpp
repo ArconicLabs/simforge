@@ -60,15 +60,24 @@ CollisionGenerator* AdapterManager::find_collision_generator(const std::string& 
     for (const auto& gen : collision_generators_) {
         if (gen->name() == name) return gen.get();
     }
-    // Return first available if name doesn't match
-    return collision_generators_.empty() ? nullptr : collision_generators_[0].get();
+    if (!collision_generators_.empty() && !name.empty()) {
+        spdlog::warn("Collision generator '{}' not found; falling back to '{}'",
+                     name, collision_generators_[0]->name());
+        return collision_generators_[0].get();
+    }
+    return nullptr;
 }
 
 LODGenerator* AdapterManager::find_lod_generator(const std::string& name) const {
     for (const auto& gen : lod_generators_) {
         if (gen->name() == name) return gen.get();
     }
-    return lod_generators_.empty() ? nullptr : lod_generators_[0].get();
+    if (!lod_generators_.empty() && !name.empty()) {
+        spdlog::warn("LOD generator '{}' not found; falling back to '{}'",
+                     name, lod_generators_[0]->name());
+        return lod_generators_[0].get();
+    }
+    return nullptr;
 }
 
 void AdapterManager::register_articulated_importer(ArticulatedImporterPtr importer) {

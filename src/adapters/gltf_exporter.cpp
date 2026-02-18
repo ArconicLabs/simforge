@@ -227,8 +227,12 @@ public:
                                                true,   // embedBuffers
                                                true,   // prettyPrint
                                                is_binary);
+        if (!warn.empty()) {
+            spdlog::warn("GLTF exporter: {}", warn);
+        }
         if (!ok) {
-            spdlog::error("GLTF exporter: write failed for {}", output_path.string());
+            spdlog::error("GLTF exporter: write failed for {}: {}",
+                          output_path.string(), err);
         }
         return ok;
     }

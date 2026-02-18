@@ -180,10 +180,12 @@ private:
         if (it != children.end()) {
             for (const auto* joint : it->second) {
                 auto* child_link = tree.find_link(joint->child_link);
-                if (!child_link) continue;
+                if (!child_link) {
+                    spdlog::warn("MJCF exporter: child link '{}' not found, skipping subtree",
+                                 joint->child_link);
+                    continue;
+                }
 
-                // Emit the joint inside the child body element
-                // First create the child body, then add joint inside it
                 emit_child_body_with_joint(doc, body, *child_link, *joint, tree, children);
             }
         }
@@ -248,7 +250,11 @@ private:
         if (it != children.end()) {
             for (const auto* child_joint : it->second) {
                 auto* child_link = tree.find_link(child_joint->child_link);
-                if (!child_link) continue;
+                if (!child_link) {
+                    spdlog::warn("MJCF exporter: child link '{}' not found, skipping subtree",
+                                 child_joint->child_link);
+                    continue;
+                }
                 emit_child_body_with_joint(doc, body, *child_link, *child_joint, tree, children);
             }
         }
