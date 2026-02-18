@@ -118,7 +118,7 @@ Asset::Asset(const Asset& other)
       status(other.status), validations(other.validations), metadata(other.metadata),
       kinematic_tree(other.kinematic_tree
           ? std::make_unique<KinematicTree>(*other.kinematic_tree) : nullptr),
-      output_path(other.output_path) {}
+      output_path(other.output_path), content_hash(other.content_hash) {}
 
 Asset& Asset::operator=(const Asset& other) {
     if (this != &other) {
@@ -137,6 +137,7 @@ Asset& Asset::operator=(const Asset& other) {
         kinematic_tree = other.kinematic_tree
             ? std::make_unique<KinematicTree>(*other.kinematic_tree) : nullptr;
         output_path    = other.output_path;
+        content_hash   = other.content_hash;
     }
     return *this;
 }
@@ -154,6 +155,9 @@ nlohmann::json Asset::to_catalog_entry() const {
     entry["source_format"]  = format_to_string(source_format);
     entry["output_path"]    = output_path.string();
     entry["status"]         = static_cast<int>(status);
+    if (!content_hash.empty()) {
+        entry["content_hash"] = content_hash;
+    }
 
     entry["mesh_count"]     = meshes.size();
     size_t total_tris = 0;

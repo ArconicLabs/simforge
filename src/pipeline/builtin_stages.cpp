@@ -236,6 +236,40 @@ void PhysicsStage::configure(const YAML::Node& config) {
         default_material_.dynamic_friction = default_material_.static_friction * 0.8f;
         default_material_.restitution = config["restitution"].as<float>(default_material_.restitution);
     }
+
+    // Load material library for lookup mode
+    if (auto lib_path = config["material_library"]) {
+        try {
+            material_library_ = MaterialLibrary::from_file(lib_path.as<std::string>());
+            spdlog::info("  Loaded material library with {} materials",
+                         material_library_->size());
+        } catch (const std::exception& e) {
+            spdlog::error("  Failed to load material library: {}", e.what());
+        }
+    }
+}
+
+/// Try to resolve a material from the library for an asset or link.
+/// Checks metadata["material"] first, then PBR material names.
+const PhysicsMaterial* PhysicsStage::resolve_material(
+    const nlohmann::json& metadata,
+    const std::vector<PBRMaterial>& pbr_materials) const
+{
+    if (!material_library_) return nullptr;
+
+    // Check metadata["material"] first
+    if (metadata.contains("material") && metadata["material"].is_string()) {
+        auto name = metadata["material"].get<std::string>();
+        if (auto* mat = material_library_->find(name)) return mat;
+        spdlog::warn("  Material '{}' not found in library", name);
+    }
+
+    // Fallback: try PBR material names
+    for (const auto& pbr : pbr_materials) {
+        if (auto* mat = material_library_->find(pbr.name)) return mat;
+    }
+
+    return nullptr;
 }
 
 Result<Asset> PhysicsStage::process(Asset asset) {
@@ -244,12 +278,19 @@ Result<Asset> PhysicsStage::process(Asset asset) {
         for (auto& link : asset.kinematic_tree->links) {
             if (link.physics.has_value() || link.visual_meshes.empty()) continue;
 
-            if (mass_mode_ == "geometry") {
+            PhysicsMaterial mat = default_material_;
+
+            if (mass_mode_ == "lookup") {
+                if (auto* found = resolve_material(link.metadata, link.materials))
+                    mat = *found;
+            }
+
+            if (mass_mode_ == "geometry" || mass_mode_ == "lookup") {
                 link.physics = PhysicsProperties::estimate_from_mesh(
-                    link.visual_meshes[0], default_material_);
+                    link.visual_meshes[0], mat);
             } else {
                 PhysicsProperties props;
-                props.material = default_material_;
+                props.material = mat;
                 link.physics = props;
             }
         }
@@ -260,21 +301,28 @@ Result<Asset> PhysicsStage::process(Asset asset) {
             return Result<Asset>::err({name(), asset.id, "No meshes to annotate"}, std::move(asset));
         }
 
-        if (mass_mode_ == "geometry") {
+        PhysicsMaterial mat = default_material_;
+
+        if (mass_mode_ == "lookup") {
+            if (auto* found = resolve_material(asset.metadata, asset.materials))
+                mat = *found;
+        }
+
+        if (mass_mode_ == "geometry" || mass_mode_ == "lookup") {
             auto& primary = asset.meshes[0];
-            asset.physics = PhysicsProperties::estimate_from_mesh(primary, default_material_);
+            asset.physics = PhysicsProperties::estimate_from_mesh(primary, mat);
             spdlog::info("  Estimated mass: {:.3f} kg (density: {:.0f} kg/m³)",
-                         asset.physics->mass, default_material_.density);
+                         asset.physics->mass, mat.density);
         } else if (mass_mode_ == "explicit") {
             PhysicsProperties props;
-            props.material = default_material_;
+            props.material = mat;
             if (asset.metadata.contains("mass")) {
                 props.mass = asset.metadata["mass"].get<float>();
             }
             asset.physics = props;
         } else {
             PhysicsProperties props;
-            props.material = default_material_;
+            props.material = mat;
             asset.physics = props;
         }
     }

@@ -1,0 +1,134 @@
+# SimForge default material library
+#
+# Maps material names to physics properties used by the 'lookup' mass
+# estimation mode. Names are matched case-insensitively.
+#
+# Each entry requires 'density' (kg/m³). Optional fields default to:
+#   static_friction: 0.5, dynamic_friction: static * 0.8, restitution: 0.3
+
+materials:
+  # ─── Metals ──────────────────────────────────────────────────────
+  steel:
+    density: 7800.0
+    static_friction: 0.6
+    dynamic_friction: 0.42
+    restitution: 0.25
+
+  stainless_steel:
+    density: 8000.0
+    static_friction: 0.6
+    dynamic_friction: 0.42
+    restitution: 0.25
+
+  aluminum:
+    density: 2700.0
+    static_friction: 0.47
+    dynamic_friction: 0.35
+    restitution: 0.3
+
+  titanium:
+    density: 4500.0
+    static_friction: 0.36
+    dynamic_friction: 0.3
+    restitution: 0.25
+
+  copper:
+    density: 8960.0
+    static_friction: 0.53
+    dynamic_friction: 0.36
+    restitution: 0.22
+
+  brass:
+    density: 8500.0
+    static_friction: 0.5
+    dynamic_friction: 0.4
+    restitution: 0.3
+
+  cast_iron:
+    density: 7200.0
+    static_friction: 0.52
+    dynamic_friction: 0.35
+    restitution: 0.15
+
+  # ─── Plastics / Polymers ─────────────────────────────────────────
+  abs:
+    density: 1050.0
+    static_friction: 0.5
+    dynamic_friction: 0.35
+    restitution: 0.35
+
+  nylon:
+    density: 1140.0
+    static_friction: 0.4
+    dynamic_friction: 0.3
+    restitution: 0.4
+
+  polycarbonate:
+    density: 1200.0
+    static_friction: 0.45
+    dynamic_friction: 0.35
+    restitution: 0.35
+
+  hdpe:
+    density: 960.0
+    static_friction: 0.3
+    dynamic_friction: 0.2
+    restitution: 0.45
+
+  pla:
+    density: 1240.0
+    static_friction: 0.5
+    dynamic_friction: 0.35
+    restitution: 0.3
+
+  # ─── Rubber / Elastomers ─────────────────────────────────────────
+  rubber:
+    density: 1100.0
+    static_friction: 1.0
+    dynamic_friction: 0.8
+    restitution: 0.6
+
+  silicone:
+    density: 1250.0
+    static_friction: 0.9
+    dynamic_friction: 0.7
+    restitution: 0.5
+
+  # ─── Natural Materials ───────────────────────────────────────────
+  wood:
+    density: 600.0
+    static_friction: 0.5
+    dynamic_friction: 0.35
+    restitution: 0.3
+
+  plywood:
+    density: 680.0
+    static_friction: 0.45
+    dynamic_friction: 0.35
+    restitution: 0.25
+
+  # ─── Ceramics / Stone ────────────────────────────────────────────
+  glass:
+    density: 2500.0
+    static_friction: 0.35
+    dynamic_friction: 0.25
+    restitution: 0.65
+
+  ceramic:
+    density: 2300.0
+    static_friction: 0.4
+    dynamic_friction: 0.3
+    restitution: 0.2
+
+  concrete:
+    density: 2400.0
+    static_friction: 0.65
+    dynamic_friction: 0.5
+    restitution: 0.15
+
+  # ─── Carbon Fiber ────────────────────────────────────────────────
+  carbon_fiber:
+    density: 1600.0
+    static_friction: 0.45
+    dynamic_friction: 0.35
+    restitution: 0.3

@@ -1,11 +1,15 @@
 #include "simforge/pipeline/pipeline.h"
 
+#include <atomic>
 #include <chrono>
 #include <fstream>
-#include <iomanip>
+#include <thread>
 
 #include <spdlog/spdlog.h>
 #include <nlohmann/json.hpp>
+#include <yaml-cpp/yaml.h>
+
+#include "simforge/core/hashing.h"
 
 namespace simforge {
 
@@ -65,6 +69,10 @@ PipelineConfig PipelineConfig::from_string(const std::string& yaml_str) {
         config.stage_order = {"ingest", "collision", "physics", "optimize", "validate", "export"};
     }
 
+    // Thread count: 0 = auto, 1 = sequential (default)
+    config.threads = pipeline["threads"].as<uint32_t>(1);
+    config.force   = pipeline["force"].as<bool>(false);
+
     return config;
 }
 
@@ -94,14 +102,17 @@ void Pipeline::build() {
             }
         }
 
-        // Inject pipeline-level target_formats into export stage when
-        // it doesn't specify its own formats
-        if (stage_name == "export" &&
-            !stage_config["formats"] && !stage_config["format"]) {
-            for (const auto& f : config_.target_formats) {
-                auto s = format_to_string(f);
-                std::transform(s.begin(), s.end(), s.begin(), ::tolower);
-                stage_config["formats"].push_back(s);
+        // Inject pipeline-level settings into export stage
+        if (stage_name == "export") {
+            if (!stage_config["formats"] && !stage_config["format"]) {
+                for (const auto& f : config_.target_formats) {
+                    auto s = format_to_string(f);
+                    std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+                    stage_config["formats"].push_back(s);
+                }
+            }
+            if (!stage_config["output_dir"]) {
+                stage_config["output_dir"] = config_.output_dir.string();
             }
         }
 
@@ -144,26 +155,137 @@ std::vector<Asset> Pipeline::discover_assets() const {
     return assets;
 }
 
-PipelineReport Pipeline::run() {
-    PipelineReport report;
-    auto start = std::chrono::high_resolution_clock::now();
+/// Check if an asset can be skipped based on its catalog hash.
+bool Pipeline::should_skip_asset(const Asset& asset) const {
+    if (config_.force || asset.content_hash.empty()) return false;
 
-    auto assets = discover_assets();
-    report.total_assets = assets.size();
+    auto catalog_path = config_.output_dir / (asset.name + ".catalog.json");
+    if (!fs::exists(catalog_path)) return false;
 
-    for (auto& asset : assets) {
-        auto asset_report = run_single(std::move(asset));
-        if (asset_report.final_status == AssetStatus::Failed) {
-            report.failed++;
-        } else {
-            report.passed++;
+    try {
+        std::ifstream in(catalog_path);
+        auto catalog = nlohmann::json::parse(in);
+        if (catalog.contains("content_hash") &&
+            catalog["content_hash"].get<std::string>() == asset.content_hash) {
+            return true;
         }
-        report.asset_reports.push_back(std::move(asset_report));
+    } catch (...) {
+        // Corrupted catalog — reprocess
+    }
+    return false;
+}
+
+/// Canonical YAML dump of the stages config section for hash keying.
+std::string Pipeline::stages_config_yaml() const {
+    if (auto stages = config_.raw["stages"]) {
+        return YAML::Dump(stages);
+    }
+    return {};
+}
+
+PipelineReport Pipeline::run() {
+    auto start = std::chrono::high_resolution_clock::now();
+    auto assets = discover_assets();
+
+    // Compute content hashes for incremental processing
+    auto config_yaml = stages_config_yaml();
+    for (auto& asset : assets) {
+        try {
+            asset.content_hash = compute_asset_hash(asset.source_path, config_yaml);
+        } catch (...) {
+            // Hash failure is non-fatal — asset will be processed
+        }
+    }
+
+    // Filter out unchanged assets (unless --force)
+    std::vector<Asset> to_process;
+    size_t skipped = 0;
+    for (auto& asset : assets) {
+        if (should_skip_asset(asset)) {
+            spdlog::info("Skipping unchanged asset: {}", asset.name);
+            skipped++;
+        } else {
+            to_process.push_back(std::move(asset));
+        }
+    }
+    if (skipped > 0) {
+        spdlog::info("Skipped {} unchanged asset(s)", skipped);
+    }
+
+    // Resolve effective thread count
+    uint32_t effective_threads = config_.threads;
+    if (effective_threads == 0) {
+        effective_threads = std::max(1u, std::thread::hardware_concurrency());
+    }
+
+    PipelineReport report;
+    report.total_assets = to_process.size();
+
+    if (effective_threads > 1 && to_process.size() > 1) {
+        report = run_parallel(std::move(to_process));
+    } else {
+        for (auto& asset : to_process) {
+            auto asset_report = run_single(std::move(asset));
+            if (asset_report.final_status == AssetStatus::Failed) {
+                report.failed++;
+            } else {
+                report.passed++;
+            }
+            report.asset_reports.push_back(std::move(asset_report));
+        }
     }
 
     auto end = std::chrono::high_resolution_clock::now();
     report.total_time_ms =
         std::chrono::duration<double, std::milli>(end - start).count();
+
+    return report;
+}
+
+PipelineReport Pipeline::run_parallel(std::vector<Asset> assets) {
+    uint32_t effective_threads = config_.threads;
+    if (effective_threads == 0)
+        effective_threads = std::max(1u, std::thread::hardware_concurrency());
+    effective_threads = std::min(effective_threads, static_cast<uint32_t>(assets.size()));
+
+    spdlog::info("Processing {} assets with {} threads", assets.size(), effective_threads);
+
+    // Pre-create output directory to avoid filesystem races
+    fs::create_directories(config_.output_dir);
+
+    // Pre-size results vector for lock-free positional writes
+    PipelineReport report;
+    report.total_assets = assets.size();
+    report.asset_reports.resize(assets.size());
+
+    std::atomic<size_t> next_index{0};
+
+    auto worker = [&](std::stop_token) {
+        while (true) {
+            size_t idx = next_index.fetch_add(1, std::memory_order_relaxed);
+            if (idx >= assets.size()) break;
+
+            report.asset_reports[idx] = run_single(std::move(assets[idx]));
+        }
+    };
+
+    std::vector<std::jthread> threads;
+    threads.reserve(effective_threads);
+    for (uint32_t i = 0; i < effective_threads; ++i) {
+        threads.emplace_back(worker);
+    }
+
+    // jthread destructors auto-join
+    threads.clear();
+
+    // Tally results
+    for (const auto& ar : report.asset_reports) {
+        if (ar.final_status == AssetStatus::Failed) {
+            report.failed++;
+        } else {
+            report.passed++;
+        }
+    }
 
     return report;
 }
