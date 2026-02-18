@@ -19,6 +19,7 @@ add_executable(simforge_tests
     test_materials.cpp
     test_parallel.cpp
     test_incremental.cpp
+    test_coverage_gaps.cpp
 )
 
 target_link_libraries(simforge_tests PRIVATE
