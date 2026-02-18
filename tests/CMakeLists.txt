@@ -25,6 +25,7 @@ add_executable(simforge_tests
 target_link_libraries(simforge_tests PRIVATE
     simforge_core
     Catch2::Catch2WithMain
+    spdlog::spdlog
     tinyxml2::tinyxml2
 )
 
