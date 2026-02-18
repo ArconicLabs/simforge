@@ -1,6 +1,6 @@
 # simforge.yaml — asset pipeline configuration
 # Run: simforge process -c simforge.yaml
-# Docs: https://github.com/aberrest/simforge
+# Docs: https://github.com/ArconicLabs/simforge
 
 pipeline:
   source: ./samples/
@@ -22,10 +22,12 @@ stages:
     formats: [obj, fbx, gltf, glb, stl, step, iges, urdf, mjcf, dae]
 
   collision:
-    method: coacd               # coacd | convex_hull | triangle_mesh | primitive
-    threshold: 0.05             # CoACD concavity threshold (lower = more precise)
+    method: convex_hull         # convex_hull | primitive | triangle_mesh | coacd (requires -DSIMFORGE_USE_COACD=ON)
     max_hulls: 32
-    resolution: 2000
+
+    # CoACD settings (only used when method: coacd and -DSIMFORGE_USE_COACD=ON):
+    # threshold: 0.05           # Concavity threshold (lower = more precise)
+    # resolution: 2000
 
   physics:
     mass_estimation: geometry   # geometry | explicit | lookup

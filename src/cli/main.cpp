@@ -5,9 +5,11 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 
 #include "simforge/core/types.h"
+#include "simforge/version.h"
 #include "simforge/pipeline/pipeline.h"
 #include "simforge/pipeline/stage.h"
 #include "simforge/adapters/adapter.h"
+#include "simforge/validators/validator.h"
 
 // Forward declaration — defined in builtin_adapters.cpp
 namespace simforge::adapters {
@@ -16,6 +18,7 @@ namespace simforge::adapters {
 
 int main(int argc, char** argv) {
     CLI::App app{"simforge — asset pipeline for robotics simulation"};
+    app.set_version_flag("--version", SIMFORGE_VERSION_STRING);
     app.require_subcommand(1);
 
     // Global options
@@ -191,10 +194,85 @@ int main(int argc, char** argv) {
         return 0;
     }
 
+    if (validate_cmd->parsed()) {
+        try {
+            namespace fs = std::filesystem;
+
+            if (!fs::exists(validate_dir) || !fs::is_directory(validate_dir)) {
+                spdlog::error("Directory not found: {}", validate_dir);
+                return 1;
+            }
+
+            auto& mgr = simforge::AdapterManager::instance();
+            auto& vreg = simforge::ValidatorRegistry::instance();
+            auto validator_names = vreg.available();
+
+            size_t total_assets = 0;
+            size_t total_checks = 0;
+            size_t total_passed = 0;
+            size_t total_failed = 0;
+
+            for (const auto& entry : fs::directory_iterator(validate_dir)) {
+                if (!entry.is_regular_file()) continue;
+
+                auto fmt = simforge::detect_format(entry.path());
+                if (fmt == simforge::SourceFormat::Unknown) continue;
+
+                auto* importer = mgr.find_importer(fmt);
+                if (!importer) continue;
+
+                total_assets++;
+                std::string asset_name = entry.path().stem().string();
+                spdlog::info("Validating: {} ({})", asset_name,
+                             simforge::format_to_string(fmt));
+
+                simforge::Asset asset;
+                asset.name = asset_name;
+                asset.source_path = entry.path();
+
+                try {
+                    asset.meshes = importer->import(entry.path());
+                    for (auto& m : asset.meshes) m.recompute_bounds();
+                } catch (const std::exception& e) {
+                    spdlog::error("  Import failed: {}", e.what());
+                    total_failed++;
+                    continue;
+                }
+
+                for (const auto& vname : validator_names) {
+                    auto validator = vreg.create(vname);
+                    if (!validator) continue;
+
+                    auto results = validator->validate(asset);
+                    for (const auto& r : results) {
+                        total_checks++;
+                        if (r.passed) {
+                            total_passed++;
+                            spdlog::info("  [PASS] {} (score: {:.2f})",
+                                         r.check_name, r.score);
+                        } else {
+                            total_failed++;
+                            spdlog::warn("  [FAIL] {}: {}",
+                                         r.check_name, r.message);
+                        }
+                    }
+                }
+            }
+
+            spdlog::info("Validation complete: {} asset(s), {} check(s), {} passed, {} failed",
+                         total_assets, total_checks, total_passed, total_failed);
+            return (total_failed > 0) ? 1 : 0;
+
+        } catch (const std::exception& e) {
+            spdlog::error("Validation error: {}", e.what());
+            return 1;
+        }
+    }
+
     if (init_cmd->parsed()) {
         std::ofstream out(init_output);
         out << R"(# simforge.yaml — asset pipeline configuration
-# See https://github.com/aberrest/simforge for documentation
+# See https://github.com/ArconicLabs/simforge for documentation
 
 pipeline:
   source: ./raw_assets/
@@ -215,10 +293,8 @@ stages:
     formats: [obj, fbx, gltf, glb, stl, step, iges, urdf, mjcf, dae]
 
   collision:
-    method: coacd               # coacd | convex_hull | triangle_mesh | primitive
-    threshold: 0.05             # CoACD concavity threshold (lower = more precise)
+    method: convex_hull         # convex_hull | primitive | triangle_mesh | coacd (requires -DSIMFORGE_USE_COACD=ON)
     max_hulls: 32
-    resolution: 2000
 
   physics:
     mass_estimation: geometry   # geometry | explicit | lookup
