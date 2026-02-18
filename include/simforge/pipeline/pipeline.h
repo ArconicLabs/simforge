@@ -23,6 +23,7 @@ struct PipelineConfig {
     std::vector<SourceFormat>   target_formats;   // one or more output formats
     std::vector<std::string>    stage_order;
     uint32_t                threads{1};       // 0 = auto (hardware_concurrency), 1 = sequential
+    bool                    force{false};     // skip incremental hash check, reprocess everything
     YAML::Node              raw;            // full parsed YAML for stage-level config
 
     static PipelineConfig from_file(const fs::path& config_path);
@@ -82,6 +83,8 @@ private:
 
     Asset run_stages(Asset asset, AssetReport& report);
     PipelineReport run_parallel(std::vector<Asset> assets);
+    [[nodiscard]] bool should_skip_asset(const Asset& asset) const;
+    [[nodiscard]] std::string stages_config_yaml() const;
 };
 
 }  // namespace simforge

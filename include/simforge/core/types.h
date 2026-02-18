@@ -335,6 +335,7 @@ struct Asset {
 
     // Output
     fs::path                        output_path;
+    std::string                     content_hash;  // SHA-256 for incremental processing
 
     [[nodiscard]] bool is_articulated() const { return kinematic_tree != nullptr; }
     [[nodiscard]] bool all_validations_passed() const;

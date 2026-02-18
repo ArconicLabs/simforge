@@ -41,6 +41,8 @@ int main(int argc, char** argv) {
     process_cmd->add_option("-o,--output", output_dir, "Output directory (overrides config)");
     process_cmd->add_option("-j,--threads", threads, "Number of threads (0=auto, 1=sequential)")
                ->default_val(0);
+    bool force = false;
+    process_cmd->add_flag("--force", force, "Reprocess all assets, ignore cached hashes");
     process_cmd->add_flag("--dry-run", dry_run, "Show what would be processed without running");
     process_cmd->add_flag("--json-report", json_report, "Write JSON report");
     process_cmd->add_option("--report-path", report_path, "Path for JSON report")
@@ -101,6 +103,7 @@ int main(int argc, char** argv) {
             if (!source_dir.empty()) config.source_dir = source_dir;
             if (!output_dir.empty()) config.output_dir = output_dir;
             if (threads > 0) config.threads = threads;
+            if (force) config.force = true;
 
             simforge::Pipeline pipeline(std::move(config));
             pipeline.build();
