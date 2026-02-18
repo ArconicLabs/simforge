@@ -9,6 +9,15 @@ namespace simforge::adapters {
 
 namespace {
 
+/// Safe float parse — returns fallback on malformed input
+float safe_stof(const char* str, float fallback = 0.0f) {
+    try { return std::stof(str); }
+    catch (...) {
+        spdlog::warn("Invalid float value: '{}'", str);
+        return fallback;
+    }
+}
+
 Vec3 parse_vec3(const char* str) {
     Vec3 v{};
     if (str) std::sscanf(str, "%f %f %f", &v.x, &v.y, &v.z);
@@ -167,7 +176,7 @@ private:
         if (inertial) {
             PhysicsProperties props;
             auto* mass_str = inertial->Attribute("mass");
-            if (mass_str) props.mass = std::stof(mass_str);
+            if (mass_str) props.mass = safe_stof(mass_str);
 
             auto* pos = inertial->Attribute("pos");
             if (pos) props.center_of_mass = parse_vec3(pos);
@@ -208,9 +217,9 @@ private:
             JointDynamics dyn;
             bool has_dyn = false;
             auto* damping = joint_elem->Attribute("damping");
-            if (damping) { dyn.damping = std::stof(damping); has_dyn = true; }
+            if (damping) { dyn.damping = safe_stof(damping); has_dyn = true; }
             auto* frictionloss = joint_elem->Attribute("frictionloss");
-            if (frictionloss) { dyn.friction = std::stof(frictionloss); has_dyn = true; }
+            if (frictionloss) { dyn.friction = safe_stof(frictionloss); has_dyn = true; }
             if (has_dyn) joint.dynamics = dyn;
 
             result.tree.joints.push_back(std::move(joint));
@@ -307,7 +316,7 @@ private:
                 act.control_mode = def.mode;
 
                 auto* gear = elem->Attribute("gear");
-                if (gear) act.gear_ratio = std::stof(gear);
+                if (gear) act.gear_ratio = safe_stof(gear);
 
                 // Parse force/ctrl range into max_torque
                 auto* forcerange = elem->Attribute("forcerange");
@@ -352,10 +361,10 @@ private:
             if (joint) sensor.properties["joint"] = std::string(joint);
 
             auto* noise = elem->Attribute("noise");
-            if (noise) sensor.properties["noise"] = std::stof(noise);
+            if (noise) sensor.properties["noise"] = safe_stof(noise);
 
             auto* cutoff = elem->Attribute("cutoff");
-            if (cutoff) sensor.properties["cutoff"] = std::stof(cutoff);
+            if (cutoff) sensor.properties["cutoff"] = safe_stof(cutoff);
 
             tree.sensors.push_back(std::move(sensor));
         }

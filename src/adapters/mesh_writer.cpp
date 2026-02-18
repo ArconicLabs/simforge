@@ -70,7 +70,13 @@ bool write_binary_stl(const Mesh& mesh, const fs::path& path) {
     auto tri_count = static_cast<uint32_t>(mesh.faces.size());
     out.write(reinterpret_cast<const char*>(&tri_count), 4);
 
+    const auto vert_count = static_cast<uint32_t>(mesh.vertices.size());
     for (const auto& f : mesh.faces) {
+        if (f.v0 >= vert_count || f.v1 >= vert_count || f.v2 >= vert_count) {
+            spdlog::error("mesh_writer: face index out of bounds ({}, {}, {}) with {} vertices",
+                          f.v0, f.v1, f.v2, vert_count);
+            return false;
+        }
         const auto& a = mesh.vertices[f.v0];
         const auto& b = mesh.vertices[f.v1];
         const auto& c = mesh.vertices[f.v2];

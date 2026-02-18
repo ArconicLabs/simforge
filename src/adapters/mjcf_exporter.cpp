@@ -71,7 +71,9 @@ private:
         for (const auto& link : tree.links) {
             for (size_t i = 0; i < link.visual_meshes.size(); i++) {
                 auto filename = link.name + "_" + std::to_string(i) + ".stl";
-                write_binary_stl(link.visual_meshes[i], asset_dir / filename);
+                if (!write_binary_stl(link.visual_meshes[i], asset_dir / filename)) {
+                    spdlog::warn("MJCF exporter: failed to write mesh for link '{}'", link.name);
+                }
 
                 auto* mesh = doc.NewElement("mesh");
                 mesh->SetAttribute("name", (link.name + "_visual_" + std::to_string(i)).c_str());
