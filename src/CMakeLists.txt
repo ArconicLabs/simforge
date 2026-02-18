@@ -27,6 +27,7 @@ add_library(simforge_core STATIC
 
 target_include_directories(simforge_core PUBLIC
     ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_BINARY_DIR}/include
 )
 
 target_link_libraries(simforge_core PUBLIC

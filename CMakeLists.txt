@@ -5,6 +5,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+configure_file(
+    "${CMAKE_SOURCE_DIR}/include/simforge/version.h.in"
+    "${CMAKE_BINARY_DIR}/include/simforge/version.h"
+)
+
 # Options
 option(SIMFORGE_BUILD_TESTS    "Build unit tests"       ON)
 option(SIMFORGE_BUILD_PYTHON   "Build Python bindings"  OFF)

@@ -97,5 +97,5 @@ Initial public release. Phase 1 (Core Pipeline + Builtins) is complete.
 - `CollisionMesh::hull_count` replaced with method derived from `hulls.size()`
 - Shared `parse_format()` extracted to remove duplicated format parsing logic
 
-[Unreleased]: https://github.com/AeronicLabs/simforge/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/AeronicLabs/simforge/releases/tag/v0.1.0
+[Unreleased]: https://github.com/ArconicLabs/simforge/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/ArconicLabs/simforge/releases/tag/v0.1.0
