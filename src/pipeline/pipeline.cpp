@@ -102,14 +102,17 @@ void Pipeline::build() {
             }
         }
 
-        // Inject pipeline-level target_formats into export stage when
-        // it doesn't specify its own formats
-        if (stage_name == "export" &&
-            !stage_config["formats"] && !stage_config["format"]) {
-            for (const auto& f : config_.target_formats) {
-                auto s = format_to_string(f);
-                std::transform(s.begin(), s.end(), s.begin(), ::tolower);
-                stage_config["formats"].push_back(s);
+        // Inject pipeline-level settings into export stage
+        if (stage_name == "export") {
+            if (!stage_config["formats"] && !stage_config["format"]) {
+                for (const auto& f : config_.target_formats) {
+                    auto s = format_to_string(f);
+                    std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+                    stage_config["formats"].push_back(s);
+                }
+            }
+            if (!stage_config["output_dir"]) {
+                stage_config["output_dir"] = config_.output_dir.string();
             }
         }
 
