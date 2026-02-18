@@ -30,12 +30,14 @@ target_include_directories(simforge_core PUBLIC
     ${CMAKE_BINARY_DIR}/include
 )
 
-target_link_libraries(simforge_core PUBLIC
-    yaml-cpp::yaml-cpp
-    spdlog::spdlog
-    nlohmann_json::nlohmann_json
-    tinyxml2::tinyxml2
-    meshoptimizer
+target_link_libraries(simforge_core
+    PUBLIC
+        yaml-cpp::yaml-cpp
+        nlohmann_json::nlohmann_json
+    PRIVATE
+        spdlog::spdlog
+        tinyxml2::tinyxml2
+        meshoptimizer
 )
 
 target_include_directories(simforge_core PRIVATE
@@ -57,8 +59,13 @@ add_executable(simforge cli/main.cpp)
 target_link_libraries(simforge PRIVATE
     simforge_core
     CLI11::CLI11
+    spdlog::spdlog
 )
 
-install(TARGETS simforge RUNTIME DESTINATION bin)
-install(TARGETS simforge_core ARCHIVE DESTINATION lib)
-install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/ DESTINATION include)
+include(GNUInstallDirs)
+
+install(TARGETS simforge RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS simforge_core ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(FILES ${CMAKE_SOURCE_DIR}/data/materials.yaml
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/simforge)

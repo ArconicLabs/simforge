@@ -106,8 +106,10 @@ endif()
 if(SIMFORGE_USE_COACD)
     find_package(coacd QUIET)
     if(NOT coacd_FOUND)
+        if(CMAKE_VERSION VERSION_LESS "3.24")
+            message(FATAL_ERROR "SIMFORGE_USE_COACD with FetchContent requires CMake >= 3.24")
+        endif()
         message(STATUS "CoACD not found, fetching from source...")
-        cmake_minimum_required(VERSION 3.24)
         FetchContent_Declare(
             coacd
             GIT_REPOSITORY https://github.com/SarahWeiii/CoACD.git
@@ -141,3 +143,4 @@ if(SIMFORGE_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
+

@@ -14,7 +14,15 @@ target_link_libraries(simforge_python PRIVATE simforge_core)
 
 # Ensure all symbols from the static library are included so that
 # adapter and stage registration works correctly.
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+if(APPLE)
+    target_link_options(simforge_python PRIVATE
+        "-Wl,-force_load,$<TARGET_FILE:simforge_core>"
+    )
+elseif(MSVC)
+    target_link_options(simforge_python PRIVATE
+        "/WHOLEARCHIVE:$<TARGET_FILE:simforge_core>"
+    )
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_link_options(simforge_python PRIVATE
         "LINKER:--whole-archive"
         $<TARGET_FILE:simforge_core>
