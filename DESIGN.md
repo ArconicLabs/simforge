@@ -852,8 +852,8 @@ Downstream tools can parse these catalogs to:
 
 **Kinematic trees.** *(Resolved)* The `Asset` struct now contains an optional `std::unique_ptr<KinematicTree> kinematic_tree` field. `KinematicTree` holds links, joints, actuators, and sensors with name-based indexing. Option (b) was chosen for type safety. URDF and MJCF importers parse articulated files directly into this representation, and the `ArticulationStage` merges data from source files, sidecar metadata, and YAML config.
 
-**Material library.** The physics stage uses a single `default_material` from config. Real pipelines need a material lookup table (wood, steel, plastic, rubber, ceramic) that maps to density + friction values. Should this be a separate YAML file, embedded in the main config, or an adapter that reads from a database?
+**Material library.** *(Resolved)* The `PhysicsStage` supports a `lookup` mode backed by `MaterialLibrary::from_file()`, which loads a YAML material database (`data/materials.yaml`). Materials map names to density, friction, and restitution values. The library is a separate YAML file installed to `${CMAKE_INSTALL_DATADIR}/simforge`.
 
-**Incremental processing.** Currently the pipeline processes all discovered assets every run. Should we support only processing assets newer than their catalog entry? This is essentially `make`-style dependency tracking. Important for large asset libraries but adds complexity.
+**Incremental processing.** *(Resolved)* The pipeline computes SHA-256 content hashes (source file + stage config) and writes them to `.catalog.json` files. On subsequent runs, `should_skip_asset()` compares hashes and skips unchanged assets unless `--force` is set. This provides `make`-style dependency tracking with minimal overhead.
 
 **Plugin loading.** Currently adapters are compiled in via CMake flags. Should we support dynamic plugin loading (`dlopen` / shared libraries) so users can add adapters without recompiling simforge? This enables a richer ecosystem but complicates distribution.

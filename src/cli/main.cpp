@@ -126,7 +126,13 @@ int main(int argc, char** argv) {
             return (report.failed > 0) ? 1 : 0;
 
         } catch (const std::exception& e) {
-            spdlog::error("Pipeline error: {}", e.what());
+            std::string msg = e.what();
+            if (msg.find("Config file not found") != std::string::npos) {
+                spdlog::error("{}", msg);
+                spdlog::error("Run 'simforge init' to generate a default config, or use -c <path>.");
+            } else {
+                spdlog::error("Pipeline error: {}", msg);
+            }
             return 1;
         }
     }

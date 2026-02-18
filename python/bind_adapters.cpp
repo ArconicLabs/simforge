@@ -13,19 +13,19 @@ void bind_adapters(py::module_& m) {
 
     m.def("list_importers", []() {
         return AdapterManager::instance().list_importers();
-    });
+    }, "List names of all registered mesh importers.");
     m.def("list_exporters", []() {
         return AdapterManager::instance().list_exporters();
-    });
+    }, "List names of all registered mesh exporters.");
 
     m.def("available_stages", []() {
         return StageRegistry::instance().available();
-    });
+    }, "List names of all registered pipeline stages.");
     m.def("has_stage", [](const std::string& name) {
         return StageRegistry::instance().has(name);
-    }, py::arg("name"));
+    }, py::arg("name"), "Check if a pipeline stage is registered.");
 
     m.def("available_validators", []() {
         return ValidatorRegistry::instance().available();
-    });
+    }, "List names of all registered validators.");
 }

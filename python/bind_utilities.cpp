@@ -14,15 +14,21 @@ void bind_utilities(py::module_& m) {
 
     // ── Format detection ────────────────────────────────────────────
 
-    m.def("detect_format",    &detect_format,    py::arg("path"));
-    m.def("parse_format",     &parse_format,     py::arg("name"));
-    m.def("format_to_string", &format_to_string, py::arg("fmt"));
+    m.def("detect_format",    &detect_format,    py::arg("path"),
+          "Detect the source format of a file from its extension.");
+    m.def("parse_format",     &parse_format,     py::arg("name"),
+          "Parse a format name string (e.g. 'urdf') into a SourceFormat enum.");
+    m.def("format_to_string", &format_to_string, py::arg("fmt"),
+          "Convert a SourceFormat enum to its string name.");
 
     // ── Mesh I/O ────────────────────────────────────────────────────
 
-    m.def("write_obj",        &writer::write_obj,        py::arg("mesh"), py::arg("path"));
-    m.def("write_obj_multi",  &writer::write_obj_multi,  py::arg("meshes"), py::arg("path"));
-    m.def("write_binary_stl", &writer::write_binary_stl, py::arg("mesh"), py::arg("path"));
+    m.def("write_obj",        &writer::write_obj,        py::arg("mesh"), py::arg("path"),
+          "Write a single mesh to an OBJ file.");
+    m.def("write_obj_multi",  &writer::write_obj_multi,  py::arg("meshes"), py::arg("path"),
+          "Write multiple meshes to a single OBJ file.");
+    m.def("write_binary_stl", &writer::write_binary_stl, py::arg("mesh"), py::arg("path"),
+          "Write a mesh to a binary STL file.");
 
     // ── Primitive fitting result types ──────────────────────────────
 
@@ -63,7 +69,10 @@ void bind_utilities(py::module_& m) {
 
     // ── Primitive fitting functions ─────────────────────────────────
 
-    m.def("fit_obb",     &fitter::fit_obb,     py::arg("mesh"));
-    m.def("fit_sphere",  &fitter::fit_sphere,  py::arg("mesh"));
-    m.def("fit_capsule", &fitter::fit_capsule, py::arg("mesh"));
+    m.def("fit_obb",     &fitter::fit_obb,     py::arg("mesh"),
+          "Fit an oriented bounding box to a mesh.");
+    m.def("fit_sphere",  &fitter::fit_sphere,  py::arg("mesh"),
+          "Fit a bounding sphere to a mesh.");
+    m.def("fit_capsule", &fitter::fit_capsule, py::arg("mesh"),
+          "Fit a bounding capsule to a mesh.");
 }

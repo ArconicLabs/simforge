@@ -71,7 +71,12 @@ Use `--dry-run` to see what would be processed without actually running anything
 [info] Output:  ./sim_ready/
 [info] Targets: USD
 [info] Stages:
-[info]   ingest → collision → physics → optimize → validate → export
+[info]   [OK] ingest
+[info]   [OK] collision
+[info]   [OK] physics
+[info]   [OK] optimize
+[info]   [OK] validate
+[info]   [OK] export
 [info] Discovered 3 assets in ./raw_assets/
 [info] Would process 3 assets
 [info]   gripper (STEP)
