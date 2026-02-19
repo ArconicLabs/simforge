@@ -8,6 +8,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This pr
 
 ### Added
 
+- **`--version` flag**: Prints version from CMake `project(VERSION)` via generated `version.h`
+- **`validate` subcommand**: Standalone validator that re-imports output files and runs the full validator suite with per-asset pass/fail results and exit code
+- **Python docstrings**: All pybind11 bindings now have descriptive docstrings for classes, methods, and free functions
+- **`pyproject.toml`**: `pip install .` now works via scikit-build-core (requires CMake + Ninja)
+- **CI `pull_request` trigger**: PRs to `main` and `develop` now run the full CI matrix
+- **Release workflow**: `.github/workflows/release.yml` triggers on `v*` tags — builds, tests, packages, creates GitHub Release
+- **Coverage gap tests**: 17 additional tests for articulated export, edge cases, and stage logic in `test_coverage_gaps.cpp`
 - **meshoptimizer LOD adapter**: Always-on mesh decimation via `meshopt_simplify()` quadric-error simplification — zero external dependencies, replaces planned Open3D adapter
 - **Primitive fitting collision generator**: PCA-based box/sphere/capsule fitting with automatic tightest-volume selection — zero external dependencies
 - **CoACD collision adapter**: High-quality convex decomposition via the CoACD library, gated by `SIMFORGE_USE_COACD` (OFF by default)
@@ -46,8 +53,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This pr
 - **Parallel processing tests**: 6 tests covering multi-threaded execution, sequential fallback, and thread config parsing
 - **Incremental processing tests**: 12 tests covering SHA-256 determinism, skip logic, force flag, and config change detection
 
+### Fixed
+
+- **`validate` subcommand**: No longer silently exits 0 — runs actual validation
+- **Config not found error**: Now suggests `simforge init` instead of printing a generic exception
+- **Organization name**: Standardized to `ArconicLabs` everywhere (was `AeronicLabs` in CHANGELOG, `aberrest` in CLI/config)
+- **`init` default collision method**: Changed from `coacd` (requires optional flag) to `convex_hull` (always available)
+- **Silent error handling**: 9 failure paths across pipeline, adapters, and CLI now log diagnostics instead of silently continuing
+- **`--whole-archive` linker flag**: Added Apple (`-force_load`) and MSVC (`/WHOLEARCHIVE`) branches for cross-platform Python binding builds
+- **`cmake_minimum_required` in CoACD block**: Replaced no-op conditional call with `FATAL_ERROR` version check
+- **Install rules**: Added `GNUInstallDirs` for portable install destinations and `materials.yaml` data file install
+- **PRIVATE linkage**: `spdlog`, `tinyxml2`, `meshoptimizer` no longer leak into consumer link lines
+
 ### Changed
 
+- **DESIGN.md**: Marked material library and incremental processing open questions as resolved
+- **QUICKSTART.md**: Updated dry-run output to match actual `[OK]`/`[!!]` per-stage format
 - **CollisionStage**: Default generator now auto-routes based on collision method — `primitive` method uses "primitive" generator, `convex_decomposition` uses "coacd" generator
 - **OptimizeStage**: LOD generation now uses meshoptimizer instead of copying the original mesh when a generator is available
 - **CollisionStage / PhysicsStage**: Process per-link when asset is articulated, single-body path unchanged
